@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Young Douglas Insurance Services — Sales Dashboard</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,sans-serif}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.3)}}
+@keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-20px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+@keyframes raceMove{0%{transform:translateX(0)}50%{transform:translateX(4px)}100%{transform:translateX(0)}}
+@keyframes gallop{0%{transform:translateY(0)}50%{transform:translateY(-4px)}100%{transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+input,select,textarea{font-family:inherit}
+</style>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const{useState,useEffect,useCallback,useRef}=React;
+
+/* ===== LOGO ===== */
+const LOGO_B64="data:image/jpeg;base64,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";
+
+/* ===== CONFIG ===== */
+const CTM_WEB_APP_URL=""; // ← Paste your deployed Apps Script Web App URL here
+const ADMIN_PASSWORD="YDI2026"; // ← Change this to your preferred password
+
+const AVATAR_OPTIONS=["👨‍💼","👩‍💼","👩‍💻","👩‍🔧","👨‍🔧","👨‍💻","🧑‍💼","🧑‍💻","👸","🤴","🦸","🦹","🧙","🥷","🦊","🐺","🦅","🐉","🔥","⭐","💎","🏆","🎯","🚀"];
+const SOUND_OPTIONS=[
+  {id:"chime",name:"🔔 Chime",freqs:[523.25,659.25,783.99,1046.50]},
+  {id:"fanfare",name:"🎺 Fanfare",freqs:[261.63,329.63,392,523.25,659.25]},
+  {id:"ding",name:"🛎️ Ding",freqs:[880]},
+  {id:"victory",name:"🏆 Victory",freqs:[392,523.25,659.25,783.99,1046.50,1318.51]},
+  {id:"cash",name:"💰 Cash Register",freqs:[1200,800,1200,1600]},
+  {id:"power",name:"⚡ Power Up",freqs:[200,400,600,800,1000,1200]},
+];
+const DEFAULT_AGENTS=[
+  {id:"joey",name:"Joey",avatar:"👨‍💼",color:"#6366f1",gid:"1609724004",sheetId:"1lcpyQctMAIZ1Q-cDFIpWNelf7R_Y61PJCfCXyVFhh4E",sound:"chime"},
+  {id:"melissa",name:"Melissa Douglas",avatar:"👩‍💼",color:"#db2777",gid:"0",sheetId:"1A0zojTTbqWpohNSsa9lmA3HoOSCcC8a7yxl-VLvjCLI",sound:"fanfare"},
+  {id:"stephanie",name:"Stephanie Jones",avatar:"👩‍💻",color:"#0891b2",gid:"0",sheetId:"1wGf4D137wbeI80R67NgusuAA5rGMa2xZJjqmkmAxdfA",sound:"victory"},
+  {id:"kim",name:"Kim Reese",avatar:"👩‍🔧",color:"#d97706",gid:"0",sheetId:"1qFrMldIUyixXDAjxHDUq8ZocoVaztWRBF6yvo2w6G3Y",sound:"cash"},
+];
+const MASTER_SHEET_ID="1lcpyQctMAIZ1Q-cDFIpWNelf7R_Y61PJCfCXyVFhh4E";
+const TEAM_GOALS=[{name:"Bronze",target:75000,icon:"🥉",color:"#b45309"},{name:"Silver",target:100000,icon:"🥈",color:"#6b7280"},{name:"Gold",target:125000,icon:"🥇",color:"#ca8a04"},{name:"Platinum",target:150000,icon:"💎",color:"#7c3aed"},{name:"Diamond",target:200000,icon:"👑",color:"#0891b2"}];
+const DEFAULT_PERIODS=[{name:"Q1 2026",start:"2026-01-01",end:"2026-03-31"},{name:"Q2 2026",start:"2026-04-01",end:"2026-06-30"},{name:"Q3 2026",start:"2026-07-01",end:"2026-09-30"},{name:"Q4 2026",start:"2026-10-01",end:"2026-12-31"}];
+
+const MOTIVATIONAL_QUOTES=[
+  // Insurance & Agency
+  {quote:"Every no gets you closer to the yes. Keep dialing.",author:"Insurance Wisdom"},
+  {quote:"Your premium today is someone's peace of mind tomorrow.",author:"YDI Culture"},
+  {quote:"The best time to sell insurance is before the claim. The second best time is now.",author:"Agency Truth"},
+  {quote:"Don't sell insurance. Solve problems. The premium follows.",author:"LaMonte Douglas"},
+  {quote:"Every policy bound is a family protected. That's the mission.",author:"YDI Culture"},
+  {quote:"Top producers don't wait for leads. They create them.",author:"Agency Wisdom"},
+  {quote:"The only bad call is the one you didn't make.",author:"Insurance Hustle"},
+  {quote:"Protection isn't a product. It's a promise. Deliver it daily.",author:"YDI Culture"},
+  {quote:"Your clients sleep better because of the call you made today.",author:"Insurance Truth"},
+  {quote:"A policy sold is a catastrophe prevented. Never forget that.",author:"LaMonte Douglas"},
+  {quote:"The best referral is a client who trusts you completely.",author:"Agency Wisdom"},
+  {quote:"Insurance is the only product people hope they never use — and are glad they have.",author:"Industry Truth"},
+  {quote:"Underwriting fear is our advantage. Solve it.",author:"YDI Culture"},
+  {quote:"Every claim you prevent with coverage is a family you saved.",author:"LaMonte Douglas"},
+  {quote:"Know your product cold. Warm the room. Close the deal.",author:"Agency Wisdom"},
+  {quote:"Commercial accounts don't find you. You find them.",author:"YDI Battle Royale"},
+  {quote:"Life insurance is love made tangible.",author:"Industry Truth"},
+  {quote:"The Inland Empire needs protection. You're the one providing it.",author:"LaMonte Douglas"},
+  {quote:"Your pipeline is only as full as your prospecting is consistent.",author:"Agency Wisdom"},
+  {quote:"Bind it, protect it, move on. Then do it again.",author:"YDI Culture"},
+  {quote:"The quote you send today could be the policy that saves them tomorrow.",author:"Insurance Truth"},
+  {quote:"Every objection is a question in disguise. Answer it.",author:"Agency Wisdom"},
+  {quote:"Workers comp keeps businesses running. Never undersell it.",author:"YDI Culture"},
+  {quote:"Restaurants, barbershops, food trucks — every business needs you.",author:"LaMonte Douglas"},
+  {quote:"Cross-sell with purpose. Multi-line clients are loyal clients.",author:"Agency Wisdom"},
+  {quote:"Medicare clients have earned their peace of mind. Help them find it.",author:"YDI Culture"},
+  {quote:"A referral is the highest compliment a client can give. Earn it.",author:"Insurance Wisdom"},
+  {quote:"Your retention rate is your report card. Study it.",author:"Agency Truth"},
+  {quote:"Habitational insurance is boring to most. Let it be your edge.",author:"LaMonte Douglas"},
+  {quote:"The agent who knows the niche owns the niche.",author:"Agency Wisdom"},
+  // Sales Mindset
+  {quote:"Champions aren't born in the comfort zone. Make the call.",author:"LaMonte Douglas"},
+  {quote:"Rejection is redirection. Stay in the game.",author:"YDI Battle Royale"},
+  {quote:"One more call could be the one that changes your month.",author:"Sales Wisdom"},
+  {quote:"Discipline beats motivation every single day.",author:"YDI Culture"},
+  {quote:"Small daily wins build the big monthly trophy.",author:"Sales Truth"},
+  {quote:"You didn't come this far to only come this far.",author:"YDI Battle Royale"},
+  {quote:"Your attitude determines your altitude. Climb today.",author:"YDI Battle Royale"},
+  {quote:"The grind is the glory. Embrace it.",author:"Sales Wisdom"},
+  {quote:"Sales is a transfer of energy. Bring yours high.",author:"YDI Culture"},
+  {quote:"The best closers were once the worst beginners.",author:"Sales Truth"},
+  {quote:"Average people wait for perfect conditions. Champions create them.",author:"Sales Wisdom"},
+  {quote:"Activity cures anxiety. Pick up the phone.",author:"YDI Battle Royale"},
+  {quote:"Motivation fades. Systems stay. Build better systems.",author:"LaMonte Douglas"},
+  {quote:"The difference between good and great is one more call.",author:"Sales Truth"},
+  {quote:"Consistency is the cheat code no one talks about.",author:"YDI Culture"},
+  {quote:"Your results are a mirror of your daily habits.",author:"Sales Wisdom"},
+  {quote:"Don't count the days. Make the days count.",author:"Muhammad Ali"},
+  {quote:"Hustle in silence. Let your numbers make the noise.",author:"YDI Battle Royale"},
+  {quote:"Every setback is a setup for a comeback.",author:"Sales Truth"},
+  {quote:"The scoreboard doesn't lie. What does yours say?",author:"YDI Battle Royale"},
+  {quote:"Pressure makes diamonds. This job makes champions.",author:"LaMonte Douglas"},
+  {quote:"You are one decision away from a completely different month.",author:"Sales Wisdom"},
+  {quote:"The moment you stop improving is the moment you start declining.",author:"Sales Truth"},
+  {quote:"Work like someone is trying to take your spot. They are.",author:"YDI Battle Royale"},
+  {quote:"Do what others won't today so you can have what others can't tomorrow.",author:"Sales Wisdom"},
+  {quote:"The hardest part of any call is dialing. After that, it's just a conversation.",author:"YDI Culture"},
+  {quote:"Fear of rejection is the biggest commission killer in this industry.",author:"LaMonte Douglas"},
+  {quote:"Winners don't wait for the mood to strike. They strike regardless.",author:"Sales Truth"},
+  {quote:"Your best month is still ahead of you.",author:"YDI Battle Royale"},
+  {quote:"Done is better than perfect. Send the quote.",author:"Sales Wisdom"},
+  // Hustle & Grind
+  {quote:"Your network is your net worth. Protect both.",author:"Porter Gale"},
+  {quote:"Success is rented, not owned. The rent is due every day.",author:"Rory Vaden"},
+  {quote:"Make the call. Send the quote. Follow up. Repeat.",author:"YDI Culture"},
+  {quote:"The early bird doesn't just get the worm — it gets the commercial account.",author:"LaMonte Douglas"},
+  {quote:"No one ever drowned in sweat.",author:"Lou Holtz"},
+  {quote:"Hard work beats talent when talent doesn't work hard.",author:"Tim Notke"},
+  {quote:"The only place success comes before work is in the dictionary.",author:"Vince Lombardi"},
+  {quote:"Rise and grind isn't a lifestyle. It's a strategy.",author:"YDI Battle Royale"},
+  {quote:"Outwork the doubt. Every single time.",author:"Sales Truth"},
+  {quote:"Put in the reps. The results take care of themselves.",author:"YDI Culture"},
+  {quote:"Ordinary effort produces ordinary results. You're not ordinary.",author:"LaMonte Douglas"},
+  {quote:"Go the extra mile. It's never crowded there.",author:"Wayne Dyer"},
+  {quote:"The grind you put in on Tuesday determines your Friday.",author:"YDI Battle Royale"},
+  {quote:"Tired is temporary. Regret is permanent.",author:"Sales Wisdom"},
+  {quote:"Action is the foundational key to all success.",author:"Pablo Picasso"},
+  {quote:"A year from now you'll wish you'd started today.",author:"Karen Lamb"},
+  {quote:"The only way out is through.",author:"Robert Frost"},
+  {quote:"Don't stop when you're tired. Stop when you're done.",author:"Sales Truth"},
+  {quote:"You've got to eat while you dream.",author:"Harvey Weinstein"},
+  {quote:"Success isn't given. It's earned on the track, the field, the office.",author:"YDI Culture"},
+  {quote:"Make it happen. Shock everyone.",author:"YDI Battle Royale"},
+  {quote:"Outlearn. Outprepare. Outperform.",author:"LaMonte Douglas"},
+  {quote:"Great things are not done by impulse, but by a series of small things brought together.",author:"Vincent van Gogh"},
+  {quote:"The secret of getting ahead is getting started.",author:"Mark Twain"},
+  {quote:"It always seems impossible until it's done.",author:"Nelson Mandela"},
+  {quote:"Dream big. Start small. Act now.",author:"Robin Sharma"},
+  {quote:"All our dreams can come true, if we have the courage to pursue them.",author:"Walt Disney"},
+  {quote:"The future depends on what you do today.",author:"Mahatma Gandhi"},
+  {quote:"You don't have to be great to start, but you have to start to be great.",author:"Zig Ziglar"},
+  {quote:"It's not about having time. It's about making time.",author:"YDI Culture"},
+  // Leadership & Team
+  {quote:"A team that celebrates together stays together.",author:"YDI Culture"},
+  {quote:"Iron sharpens iron. Push each other up, not down.",author:"LaMonte Douglas"},
+  {quote:"The strength of the team is each individual member.",author:"Phil Jackson"},
+  {quote:"A rising tide lifts all boats. Be the tide.",author:"YDI Battle Royale"},
+  {quote:"Leadership is not a position. It's action.",author:"Donald McGannon"},
+  {quote:"Your team's ceiling is your floor. Raise them up.",author:"LaMonte Douglas"},
+  {quote:"No one wins alone. Not even the leaderboard leader.",author:"YDI Culture"},
+  {quote:"Compete with each other hard. Celebrate each other harder.",author:"LaMonte Douglas"},
+  {quote:"Healthy competition builds elite teams.",author:"YDI Battle Royale"},
+  {quote:"The best teams are made of people who make each other better.",author:"Sales Truth"},
+  {quote:"Accountability is a gift, not a punishment.",author:"YDI Culture"},
+  {quote:"Culture eats strategy for breakfast.",author:"Peter Drucker"},
+  {quote:"You set the standard. Your teammates follow it.",author:"LaMonte Douglas"},
+  {quote:"Cheer loud for your teammates. It comes back around.",author:"YDI Battle Royale"},
+  {quote:"Share what's working. Raise the whole team.",author:"YDI Culture"},
+  {quote:"Talent wins games. Teamwork wins championships.",author:"Michael Jordan"},
+  {quote:"The scoreboard is individual. The mission is collective.",author:"LaMonte Douglas"},
+  {quote:"Be someone your teammates want to compete against.",author:"YDI Battle Royale"},
+  {quote:"Mentors become legends. Be both.",author:"YDI Culture"},
+  {quote:"Your legacy at this agency is the producers you helped level up.",author:"LaMonte Douglas"},
+  // Mindset & Mental Game
+  {quote:"Your mind is your most important sales tool. Sharpen it daily.",author:"Sales Wisdom"},
+  {quote:"What you think about, you bring about.",author:"Bob Proctor"},
+  {quote:"The mind is everything. What you think, you become.",author:"Buddha"},
+  {quote:"Control the controllables. Everything else is noise.",author:"YDI Culture"},
+  {quote:"The conversation in your head determines the conversation on the phone.",author:"Sales Truth"},
+  {quote:"Confidence isn't arrogance. It's preparation showing up on time.",author:"LaMonte Douglas"},
+  {quote:"You are what you repeatedly do. Excellence is not an act, but a habit.",author:"Aristotle"},
+  {quote:"Whether you think you can or you think you can't — you're right.",author:"Henry Ford"},
+  {quote:"The biggest room in the world is the room for self-improvement.",author:"Helmut Schmidt"},
+  {quote:"Don't wait for motivation. Build momentum.",author:"YDI Battle Royale"},
+  {quote:"Your self-talk determines your sales talk.",author:"Sales Wisdom"},
+  {quote:"Feed your mind good content. Starve it of doubt.",author:"YDI Culture"},
+  {quote:"A calm mind is a closing mind.",author:"Sales Truth"},
+  {quote:"Never let a bad morning become a bad day.",author:"YDI Battle Royale"},
+  {quote:"The moment you doubt, the client does too.",author:"Sales Wisdom"},
+  {quote:"Invest in your mind like you invest in your pipeline.",author:"LaMonte Douglas"},
+  {quote:"You can't pour from an empty cup. Take care of yourself.",author:"YDI Culture"},
+  {quote:"Resilience is not about bouncing back. It's about bouncing forward.",author:"Sales Truth"},
+  {quote:"Failure is just tuition for success.",author:"Walter Brunell"},
+  {quote:"Winners see what they want. Losers see what they don't want.",author:"Sales Wisdom"},
+  {quote:"The harder you work, the luckier you get.",author:"Gary Player"},
+  {quote:"Embrace the discomfort. That's where growth lives.",author:"YDI Battle Royale"},
+  {quote:"Your worst day as a producer is better than not being in the game.",author:"LaMonte Douglas"},
+  {quote:"Energy is contagious. Bring the kind that closes deals.",author:"Sales Wisdom"},
+  {quote:"Gratitude in the morning, grind all day.",author:"YDI Culture"},
+  // Goal Setting & Achievement
+  {quote:"A goal without a plan is just a wish.",author:"Antoine de Saint-Exupéry"},
+  {quote:"Set goals so big they scare you a little.",author:"YDI Battle Royale"},
+  {quote:"Track it. Measure it. Improve it.",author:"LaMonte Douglas"},
+  {quote:"Big goals require big action. Start with today.",author:"Sales Truth"},
+  {quote:"The goal isn't to be busy. The goal is to be effective.",author:"Tim Ferriss"},
+  {quote:"What gets measured gets improved.",author:"Peter Drucker"},
+  {quote:"You can't hit a target you can't see.",author:"Zig Ziglar"},
+  {quote:"Break the big goal into daily non-negotiables.",author:"LaMonte Douglas"},
+  {quote:"Your quota is the floor, not the ceiling.",author:"YDI Battle Royale"},
+  {quote:"Success is the sum of small efforts repeated day in and day out.",author:"Robert Collier"},
+  {quote:"Short-term pain. Long-term premium.",author:"YDI Culture"},
+  {quote:"Review your goals every morning. Recommit every evening.",author:"Sales Wisdom"},
+  {quote:"Vision without action is daydreaming. Action without vision is chaos.",author:"YDI Battle Royale"},
+  {quote:"The mile marker changes. The standard doesn't.",author:"LaMonte Douglas"},
+  {quote:"Every goal starts as a number on a dashboard.",author:"YDI Culture"},
+  {quote:"Aim for the moon. If you miss, you'll land among the stars.",author:"Norman Vincent Peale"},
+  {quote:"Progress, not perfection. Every single day.",author:"Sales Truth"},
+  {quote:"You become your goals. Choose them wisely.",author:"YDI Battle Royale"},
+  {quote:"Write it down. Make it real.",author:"Sales Wisdom"},
+  {quote:"The goal board is watching. Are you?",author:"YDI Culture"},
+  // Client & Service
+  {quote:"The best marketing is a client who won't stop talking about you.",author:"LaMonte Douglas"},
+  {quote:"Service is not a department. It's an attitude.",author:"YDI Culture"},
+  {quote:"Under-promise. Massively over-deliver.",author:"Sales Truth"},
+  {quote:"Your reputation is built on how you handle the hard calls, not the easy ones.",author:"LaMonte Douglas"},
+  {quote:"A satisfied client is good. A loyal client is gold.",author:"Agency Wisdom"},
+  {quote:"Speed matters. Return the call before someone else does.",author:"YDI Culture"},
+  {quote:"Listen more than you talk. Close more than you lose.",author:"Sales Wisdom"},
+  {quote:"The renewal is the real test of your relationship.",author:"Agency Truth"},
+  {quote:"Make the client feel heard. Then make them feel protected.",author:"LaMonte Douglas"},
+  {quote:"Your clients don't care how much you know until they know how much you care.",author:"Theodore Roosevelt"},
+  {quote:"Every interaction is a deposit or a withdrawal. Make deposits.",author:"YDI Culture"},
+  {quote:"The hardest client to replace is the one you never should have lost.",author:"Agency Wisdom"},
+  {quote:"Be so good at service they can't imagine going anywhere else.",author:"LaMonte Douglas"},
+  {quote:"The follow-up is where most agents fail and you can win.",author:"Sales Truth"},
+  {quote:"Empathy closes more deals than any script.",author:"Sales Wisdom"},
+  {quote:"The client who says 'my agent really looks out for me' is your best marketer.",author:"LaMonte Douglas"},
+  {quote:"Handle the objection before it becomes a cancellation.",author:"Agency Wisdom"},
+  {quote:"Every client has a name, a family, and a story. Know it.",author:"YDI Culture"},
+  {quote:"Quick responses signal that you care. Slow responses signal that you don't.",author:"Sales Truth"},
+  {quote:"Your client retention is your most honest performance review.",author:"LaMonte Douglas"},
+  // Prospecting
+  {quote:"Prospecting is the lifeblood of your business. Never stop.",author:"Agency Wisdom"},
+  {quote:"The best time to prospect is when you don't feel like it.",author:"Sales Truth"},
+  {quote:"Every business card you hand out is a seed.",author:"YDI Culture"},
+  {quote:"Cold outreach is just warm relationships you haven't made yet.",author:"LaMonte Douglas"},
+  {quote:"Networking events are prospecting with better snacks.",author:"YDI Battle Royale"},
+  {quote:"The next door you knock on could be your biggest account.",author:"Sales Wisdom"},
+  {quote:"Build the referral engine before you need it.",author:"LaMonte Douglas"},
+  {quote:"A CRM without daily inputs is just an expensive contact list.",author:"Agency Truth"},
+  {quote:"LinkedIn is a prospecting goldmine. Are you mining it?",author:"YDI Culture"},
+  {quote:"Every community event is a chance to be seen as the local insurance expert.",author:"LaMonte Douglas"},
+  {quote:"The Inland Empire is full of businesses who need you. Go find them.",author:"YDI Culture"},
+  {quote:"Follow-up is the secret sauce most salespeople skip.",author:"Sales Truth"},
+  {quote:"Your sphere of influence is bigger than you think. Tap into it.",author:"LaMonte Douglas"},
+  {quote:"Referral partners multiply your reach without multiplying your effort.",author:"Agency Wisdom"},
+  {quote:"Plant seeds of trust before you need to harvest a deal.",author:"YDI Culture"},
+  {quote:"One good lunch with a mortgage broker can fill your pipeline for a quarter.",author:"LaMonte Douglas"},
+  {quote:"Don't just prospect businesses. Prospect relationships.",author:"Sales Truth"},
+  {quote:"The restaurant owner, the contractor, the salon — they all need you.",author:"YDI Culture"},
+  {quote:"Every 'no' is a 'not yet.' Keep the relationship warm.",author:"Sales Wisdom"},
+  {quote:"The fortune is in the follow-up. Always.",author:"Jim Rohn"},
+  // Classic Quotes
+  {quote:"The secret of success is to do the common things uncommonly well.",author:"John D. Rockefeller"},
+  {quote:"Success usually comes to those who are too busy to be looking for it.",author:"Henry David Thoreau"},
+  {quote:"Opportunities don't happen. You create them.",author:"Chris Grosser"},
+  {quote:"I find that the harder I work, the more luck I seem to have.",author:"Thomas Jefferson"},
+  {quote:"Don't be afraid to give up the good to go for the great.",author:"John D. Rockefeller"},
+  {quote:"If you are not willing to risk the usual, you will have to settle for the ordinary.",author:"Jim Rohn"},
+  {quote:"The successful warrior is the average man, with laser-like focus.",author:"Bruce Lee"},
+  {quote:"I never dreamed about success. I worked for it.",author:"Estée Lauder"},
+  {quote:"Success is not in what you have, but who you are.",author:"Bo Bennett"},
+  {quote:"The way to get started is to quit talking and begin doing.",author:"Walt Disney"},
+  {quote:"If you really look closely, most overnight successes took a long time.",author:"Steve Jobs"},
+  {quote:"The road to success and the road to failure are almost exactly the same.",author:"Colin R. Davis"},
+  {quote:"Successful people do what unsuccessful people are not willing to do.",author:"Jim Rohn"},
+  {quote:"It is not the mountain we conquer, but ourselves.",author:"Edmund Hillary"},
+  {quote:"You miss 100 percent of the shots you never take.",author:"Wayne Gretzky"},
+  {quote:"I attribute my success to this: I never gave or took any excuse.",author:"Florence Nightingale"},
+  {quote:"A person who never made a mistake never tried anything new.",author:"Albert Einstein"},
+  {quote:"It does not matter how slowly you go as long as you do not stop.",author:"Confucius"},
+  {quote:"Our greatest glory is not in never falling, but in rising every time we fall.",author:"Confucius"},
+  {quote:"Twenty years from now you will be more disappointed by the things you didn't do.",author:"Mark Twain"},
+  {quote:"Life is what happens when you're busy making other plans.",author:"John Lennon"},
+  {quote:"The best revenge is massive success.",author:"Frank Sinatra"},
+  {quote:"Strive not to be a success, but rather to be of value.",author:"Albert Einstein"},
+  {quote:"Two roads diverged in a wood, and I — I took the one less traveled by.",author:"Robert Frost"},
+  {quote:"When one door of happiness closes, another opens.",author:"Helen Keller"},
+  {quote:"Spread love everywhere you go. Let no one ever come to you without leaving happier.",author:"Mother Teresa"},
+  {quote:"When the going gets tough, the tough get going.",author:"Joe Kennedy"},
+  {quote:"Believe you can and you're halfway there.",author:"Theodore Roosevelt"},
+  {quote:"Start where you are. Use what you have. Do what you can.",author:"Arthur Ashe"},
+  {quote:"It's not whether you get knocked down, it's whether you get up.",author:"Vince Lombardi"},
+  // Daily Energy
+  {quote:"Today is another chance to get it right.",author:"YDI Culture"},
+  {quote:"Make this morning count. The afternoon follows your lead.",author:"Sales Truth"},
+  {quote:"The work you do this week pays you this month. And next month.",author:"LaMonte Douglas"},
+  {quote:"Your calendar is a mirror of your priorities.",author:"YDI Culture"},
+  {quote:"Block your prospecting time like it's a doctor's appointment. Because it is.",author:"LaMonte Douglas"},
+  {quote:"Morning momentum carries all day.",author:"Sales Wisdom"},
+  {quote:"Three things: make calls, send quotes, follow up. Today and every day.",author:"YDI Battle Royale"},
+  {quote:"What you do before noon sets the tone for the whole day.",author:"Sales Truth"},
+  {quote:"Show up when others don't. That's how you win.",author:"YDI Culture"},
+  {quote:"Monday energy decides Friday results.",author:"LaMonte Douglas"},
+  {quote:"The best way to predict your future is to create it.",author:"Abraham Lincoln"},
+  {quote:"Make today so awesome, yesterday gets jealous.",author:"YDI Battle Royale"},
+  {quote:"Your 8am sets the standard. Don't waste it.",author:"Sales Truth"},
+  {quote:"Eat the frog. Do the hard call first.",author:"Brian Tracy"},
+  {quote:"Don't let perfect be the enemy of done. Submit the quote.",author:"YDI Culture"},
+  {quote:"Five calls before coffee. Every morning.",author:"LaMonte Douglas"},
+  {quote:"Every day is a second chance.",author:"Sales Wisdom"},
+  {quote:"The world belongs to those who show up early and stay late.",author:"YDI Battle Royale"},
+  {quote:"Preparation + Opportunity = Luck. Control what you can.",author:"Sales Truth"},
+  {quote:"Put the phone in your hand. That's step one.",author:"YDI Culture"},
+  // Abundance & Growth
+  {quote:"There is enough business out there for everyone. Go get yours.",author:"LaMonte Douglas"},
+  {quote:"Grow your skills. Your income will follow.",author:"Sales Wisdom"},
+  {quote:"Invest one hour a day in learning. Transform your career in a year.",author:"YDI Culture"},
+  {quote:"Scarcity thinking shrinks pipelines. Abundance thinking fills them.",author:"LaMonte Douglas"},
+  {quote:"The more value you add, the more premium you write.",author:"Agency Wisdom"},
+  {quote:"Knowledge is the best policy you can carry.",author:"YDI Culture"},
+  {quote:"Every course you take pays dividends in conversations.",author:"LaMonte Douglas"},
+  {quote:"Your career ceiling is determined by your willingness to grow.",author:"Sales Truth"},
+  {quote:"A producer who stops learning stops earning.",author:"Agency Wisdom"},
+  {quote:"Be the most knowledgeable person in every room you walk into.",author:"LaMonte Douglas"},
+  {quote:"Specialization compounds. Pick a niche and dominate it.",author:"Agency Truth"},
+  {quote:"The Inland Empire market rewards agents who know it deeply.",author:"LaMonte Douglas"},
+  {quote:"Read one book a month about sales. Watch your numbers change.",author:"YDI Culture"},
+  {quote:"Your competition is sleeping. Are you?",author:"YDI Battle Royale"},
+  {quote:"Invest in your license. Invest in your relationships. Invest in yourself.",author:"LaMonte Douglas"},
+  {quote:"There's always a bigger account to write. Always.",author:"Agency Wisdom"},
+  {quote:"The market doesn't run out of clients. Only lazy producers do.",author:"Sales Truth"},
+  {quote:"Raise your expectations. The results will follow.",author:"YDI Battle Royale"},
+  {quote:"You're not competing against the market. You're competing against your potential.",author:"LaMonte Douglas"},
+  {quote:"One great commercial account can change your whole quarter.",author:"Agency Wisdom"},
+  // Closing & Follow-Through
+  {quote:"The close begins with the first question you ask.",author:"Sales Wisdom"},
+  {quote:"Always be asking for the next step.",author:"YDI Culture"},
+  {quote:"Silence after a quote is the client thinking. Don't break it.",author:"Sales Truth"},
+  {quote:"Ask for the business. The worst they say is not yet.",author:"LaMonte Douglas"},
+  {quote:"Every objection is a request for more information.",author:"Sales Wisdom"},
+  {quote:"Price is only an objection when value hasn't been established.",author:"Agency Truth"},
+  {quote:"The close is just the beginning of the relationship.",author:"YDI Culture"},
+  {quote:"Follow up five times if you have to. Most give up at two.",author:"Sales Truth"},
+  {quote:"Get the verbal. Then get the signature.",author:"LaMonte Douglas"},
+  {quote:"If they haven't said yes, find out why — don't assume it's no.",author:"Sales Wisdom"},
+  {quote:"The policy that doesn't get bound doesn't help anyone.",author:"Agency Truth"},
+  {quote:"Create urgency without panic. That's the art of the close.",author:"YDI Culture"},
+  {quote:"The fortune is in the follow-up. It always has been.",author:"Jim Rohn"},
+  {quote:"Make it easy for them to say yes.",author:"Sales Wisdom"},
+  {quote:"Send the proposal. Don't wait to be perfect. Send it.",author:"LaMonte Douglas"},
+  {quote:"Decision fatigue is real. Make the choice easy for your client.",author:"Sales Truth"},
+  {quote:"Always leave a meeting with a next step scheduled.",author:"YDI Culture"},
+  {quote:"No is just the beginning of a longer conversation.",author:"Sales Wisdom"},
+  {quote:"If you believe in your product, the close takes care of itself.",author:"LaMonte Douglas"},
+  {quote:"Bind it before someone else does.",author:"YDI Battle Royale"},
+];
+
+/* ===== THEMES ===== */
+const LIGHT={bg:"#f8fafc",bgCard:"#ffffff",bgSubtle:"#f1f5f9",border:"#e2e8f0",borderLight:"#f1f5f9",text:"#0f172a",textSec:"#475569",textMuted:"#94a3b8",shadow:"0 1px 3px rgba(0,0,0,0.06)"};
+const DARK_THEME={bg:"#0f172a",bgCard:"#1e293b",bgSubtle:"#334155",border:"#475569",borderLight:"#334155",text:"#f1f5f9",textSec:"#cbd5e1",textMuted:"#64748b",shadow:"0 1px 3px rgba(0,0,0,0.3)"};
+
+/* ===== PERSISTENCE ===== */
+function loadLS(k,d){try{const s=localStorage.getItem(k);if(s){const p=JSON.parse(s);if(p)return p;}}catch(e){}return d;}
+function saveLS(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+
+/* ===== PERIODS ===== */
+function getCurPeriodIdx(periods){const t=new Date();t.setHours(0,0,0,0);for(let i=0;i<periods.length;i++){const s=new Date(periods[i].start+"T00:00:00"),e=new Date(periods[i].end+"T23:59:59");if(t>=s&&t<=e)return i;}let l=-1;for(let i=0;i<periods.length;i++){if(t>new Date(periods[i].end+"T23:59:59"))l=i;}return l>=0?l:0;}
+function filterByPeriod(sales,p){if(!p)return sales;const s=new Date(p.start+"T00:00:00"),e=new Date(p.end+"T23:59:59");return sales.filter(x=>x.boundDateObj&&x.boundDateObj>=s&&x.boundDateObj<=e);}
+
+/* ===== POLICY CATEGORIZATION ===== */
+function categorizePolicy(type){
+  const t=(type||"").toLowerCase();
+  if(t.includes("life")||t.includes("annuity")||t.includes("term")||t.includes("whole life")||t.includes("universal life"))return"life";
+  if(t.includes("commercial")||t.includes("business")||t.includes("workers")||t.includes("bop")||t.includes("general liability")||t.includes("professional")||t.includes("restaurant")||t.includes("habitational")||t.includes("gl ")||t.includes("liability"))return"commercial";
+  return"personal";
+}
+function getPolicyBreakdown(sales){
+  const b={personal:{count:0,premium:0},life:{count:0,premium:0},commercial:{count:0,premium:0}};
+  sales.forEach(s=>{const cat=categorizePolicy(s.type);b[cat].count++;b[cat].premium+=s.price;});
+  return b;
+}
+
+/* ===== FETCH ===== */
+async function fetchCSV(sheetId,gid){const sid=sheetId||MASTER_SHEET_ID;const urls=[`https://docs.google.com/spreadsheets/d/${sid}/export?gid=${gid}&format=csv`,`https://docs.google.com/spreadsheets/d/${sid}/gviz/tq?tqx=out:csv&gid=${gid}`];for(const u of urls){try{const r=await fetch(u,{redirect:'follow'});if(!r.ok)continue;const t=await r.text();if(t&&t.length>10&&!t.startsWith("<!DOCTYPE"))return t;}catch(e){}}return null;}
+
+/* ===== SOUND ===== */
+function playSound(id){const s=SOUND_OPTIONS.find(x=>x.id===id)||SOUND_OPTIONS[0];try{const ctx=new(window.AudioContext||window.webkitAudioContext)();s.freqs.forEach((f,i)=>{const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.type="sine";o.frequency.value=f;const st=ctx.currentTime+i*0.12;g.gain.setValueAtTime(0.15,st);g.gain.exponentialRampToValueAtTime(0.001,st+0.4);o.start(st);o.stop(st+0.4);});}catch(e){}}
+
+/* ===== CSV ===== */
+function findCol(h,c){const hl=h.map(x=>x.toLowerCase().trim());for(const k of c){const i=hl.findIndex(x=>x.includes(k.toLowerCase()));if(i>=0)return h[i];}return null;}
+function parseDate(s){if(!s)return null;const p=s.split("/");if(p.length>=3)return new Date(p[2],p[0]-1,p[1]);const d=new Date(s);return isNaN(d)?null:d;}
+function daysBetween(a,b){if(!a||!b)return null;return Math.round(Math.abs(b-a)/86400000);}
+function parseRows(rows,headers){
+  const nC=findCol(headers,["name","NAME","client"]),sC=findCol(headers,["status"]),bC=findCol(headers,["bound date","bound"]),eC=findCol(headers,["effective date","effective"]),pC=findCol(headers,["price","premium"]),plC=findCol(headers,["sales platform","platform","carrier"]),tC=findCol(headers,["type of insurance","type","line"]),poC=findCol(headers,["policy number","policy"]),rC=findCol(headers,["referral","ref"]),lsC=findCol(headers,["lead source","lead_source","source"]),ldC=findCol(headers,["lead date","lead_date"]),rvC=findCol(headers,["review","reviews","rating","customer review"]);
+  return rows.filter(r=>{const n=nC?r[nC]:null,p=pC?r[pC]:null;if(!n||!p)return false;if(n==="NAME"||n==="name")return false;return!isNaN(parseFloat(String(p).replace(/[$,]/g,"")));}).map(r=>{
+    const bd=parseDate(bC?(r[bC]||""):""),ld=parseDate(ldC?(r[ldC]||""):"");
+    return{name:nC?(r[nC]||"Unknown"):"Unknown",status:sC?(r[sC]||"Bound"):"Bound",boundDate:bC?(r[bC]||""):"",effectiveDate:eC?(r[eC]||""):"",price:pC?(parseFloat(String(r[pC]||"0").replace(/[$,]/g,""))||0):0,platform:plC?(r[plC]||"Unknown"):"Unknown",type:tC?(r[tC]||"Other"):"Other",policyNumber:poC?(r[poC]||""):"",referral:rC?!!(r[rC]&&String(r[rC]).trim().length>0):false,leadSource:lsC?(r[lsC]||""):"",review:rvC?(r[rvC]||""):"",daysToBindFromLead:daysBetween(ld,bd),boundDateObj:bd};
+  });
+}
+
+/* ===== GAME ===== */
+const revTiers=[{name:"Bronze",target:15000,icon:"🥉"},{name:"Silver",target:25000,icon:"🥈"},{name:"Gold",target:40000,icon:"🥇"},{name:"Platinum",target:60000,icon:"💎"},{name:"Diamond",target:100000,icon:"👑"}];
+const polTiers=[{name:"Starter",target:5,icon:"🌱"},{name:"Hustler",target:10,icon:"🔥"},{name:"Closer",target:15,icon:"⚡"},{name:"Machine",target:25,icon:"🤖"},{name:"Legend",target:40,icon:"🏆"}];
+function getTier(tiers,v){let c=null,n=tiers[0];for(let i=0;i<tiers.length;i++){if(v>=tiers[i].target){c=tiers[i];n=tiers[i+1]||null;}else{n=tiers[i];break;}}return{current:c,next:n};}
+function getBadges(s){const n=s.length,r=s.reduce((a,p)=>a+p.price,0),ty=[...new Set(s.map(x=>x.type))],pl=[...new Set(s.map(x=>x.platform))],mo=[...new Set(s.map(x=>{const p=x.boundDate.split("/");return p.length>=2?p[0]:"";}).filter(Boolean))],li=s.filter(x=>x.type.toLowerCase().includes("life")),co=s.filter(x=>categorizePolicy(x.type)==="commercial");return[{name:"First Blood",desc:"Bind first policy",earned:n>=1,icon:"🎯"},{name:"High Roller",desc:"$5K+ policy",earned:s.some(x=>x.price>=5000),icon:"💰"},{name:"Whale Hunter",desc:"$10K+ policy",earned:s.some(x=>x.price>=10000),icon:"🐋"},{name:"Diversified",desc:"5+ types",earned:ty.length>=5,icon:"🎨"},{name:"Platform Master",desc:"5+ platforms",earned:pl.length>=5,icon:"🌐"},{name:"Referral King",desc:"Referral deal",earned:s.some(x=>x.referral),icon:"🤝"},{name:"Commercial Crusher",desc:"Commercial policy",earned:co.length>=1,icon:"🏢"},{name:"Safety First",desc:"Workers Comp",earned:s.some(x=>x.type.toLowerCase().includes("workers")),icon:"🦺"},{name:"Double Digit",desc:"10+ policies",earned:n>=10,icon:"🔟"},{name:"Back-to-Back",desc:"2+ months",earned:mo.length>=2,icon:"📅"},{name:"$25K Club",desc:"$25K premium",earned:r>=25000,icon:"💵"},{name:"Hat Trick",desc:"3+ in a week",earned:n>=3,icon:"🎩"},{name:"Life Saver",desc:"3 life policies",earned:li.length>=3,icon:"❤️"},{name:"Commercial King",desc:"5 commercial",earned:co.length>=5,icon:"🏙️"},{name:"Speed Demon",desc:"Avg bind <7d",earned:(()=>{const d=s.filter(x=>x.daysToBindFromLead!==null);return d.length>0&&(d.reduce((a,x)=>a+x.daysToBindFromLead,0)/d.length)<7;})(),icon:"⚡"},{name:"$75K Legend",desc:"$75K premium",earned:r>=75000,icon:"🔥"}];}
+function calcXP(s,ctmStats){
+  let xp=0;
+  s.forEach(x=>{xp+=100;if(x.price>=5000)xp+=200;if(x.price>=10000)xp+=300;if(x.referral)xp+=150;if(categorizePolicy(x.type)==="commercial")xp+=100;if(x.type.toLowerCase().includes("life"))xp+=120;});
+  xp+=getBadges(s).filter(a=>a.earned).length*250;
+  // CTM XP
+  if(ctmStats){xp+=(ctmStats.answeredCalls||0)*15+(ctmStats.inboundLeads||0)*25;}
+  return xp;
+}
+const xpLevels=[{level:1,xp:0},{level:2,xp:1000},{level:3,xp:2500},{level:4,xp:4500},{level:5,xp:7000},{level:6,xp:10000},{level:7,xp:14000},{level:8,xp:19000},{level:9,xp:25000},{level:10,xp:35000}];
+function getLevel(xp){let l=xpLevels[0],n=xpLevels[1];for(let i=0;i<xpLevels.length;i++){if(xp>=xpLevels[i].xp){l=xpLevels[i];n=xpLevels[i+1]||null;}}return{current:l,next:n};}
+function getStreak(s){if(!s.length)return{current:0,best:0};const d=s.map(x=>x.boundDateObj).filter(Boolean).sort((a,b)=>a-b);if(!d.length)return{current:0,best:0};const gw=d=>{const j=new Date(d.getFullYear(),0,1);return`${d.getFullYear()}-W${Math.ceil(((d-j)/86400000+j.getDay()+1)/7)}`;};const w=[...new Set(d.map(gw))].sort();let st=1,b=1;for(let i=1;i<w.length;i++){const[y1,w1]=w[i-1].split("-W").map(Number),[y2,w2]=w[i].split("-W").map(Number);if((y1===y2&&w2===w1+1)||(y2===y1+1&&w1>=52&&w2===1))st++;else st=1;b=Math.max(b,st);}return{current:st,best:b};}
+
+const fmtPrice=v=>"$"+v.toLocaleString("en-US",{minimumFractionDigits:2});
+const fmtShort=v=>v>=1000?"$"+(v/1000).toFixed(1)+"K":"$"+v.toLocaleString();
+const fmtPD=d=>{if(!d)return"";const dt=new Date(d+"T00:00:00");return(dt.getMonth()+1)+"/"+dt.getDate()+"/"+dt.getFullYear();};
+const rankEmojis=["👑","🥈","🥉","4️⃣","5️⃣","6️⃣","7️⃣","8️⃣"];
+const barColors=["#6366f1","#059669","#d97706","#dc2626","#7c3aed","#0891b2","#db2777","#0d9488"];
+
+/* ===== CONFETTI ===== */
+function useConfetti(){const c=useRef(null),p=useRef([]),f=useRef(null);const launch=useCallback(()=>{const cv=c.current;if(!cv)return;const ctx=cv.getContext("2d");cv.width=window.innerWidth;cv.height=window.innerHeight;const cols=["#6366f1","#ec4899","#f59e0b","#10b981","#ef4444","#8b5cf6","#06b6d4"];for(let i=0;i<120;i++)p.current.push({x:Math.random()*cv.width,y:-20-Math.random()*400,w:6+Math.random()*6,h:4+Math.random()*4,color:cols[Math.floor(Math.random()*cols.length)],vx:(Math.random()-0.5)*6,vy:2+Math.random()*4,rot:Math.random()*360,rs:(Math.random()-0.5)*12,life:1,decay:0.003+Math.random()*0.004});const anim=()=>{ctx.clearRect(0,0,cv.width,cv.height);p.current=p.current.filter(x=>x.life>0);p.current.forEach(x=>{x.x+=x.vx;x.vy+=0.08;x.y+=x.vy;x.rot+=x.rs;x.life-=x.decay;ctx.save();ctx.translate(x.x,x.y);ctx.rotate(x.rot*Math.PI/180);ctx.globalAlpha=x.life;ctx.fillStyle=x.color;ctx.fillRect(-x.w/2,-x.h/2,x.w,x.h);ctx.restore();});if(p.current.length>0)f.current=requestAnimationFrame(anim);};if(f.current)cancelAnimationFrame(f.current);anim();},[]);return{canvasRef:c,launch};}
+
+function MiniBar({value,max,color,height=8,T}){const pct=max>0?Math.min((value/max)*100,100):0;return <div style={{width:"100%",height,background:T.bgSubtle,borderRadius:height/2,overflow:"hidden"}}><div style={{width:`${pct}%`,height:"100%",background:color,borderRadius:height/2,transition:"width 1.2s"}}/></div>;}
+
+/* ===== MODAL ===== */
+function Modal({children,onClose,T}){return <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.55)",zIndex:10000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={onClose}><div onClick={e=>e.stopPropagation()} style={{background:T.bgCard,borderRadius:20,padding:28,maxWidth:650,width:"100%",maxHeight:"85vh",overflow:"auto",boxShadow:"0 20px 60px rgba(0,0,0,0.3)",color:T.text}}>{children}</div></div>;}
+
+/* ===== PASSWORD PROMPT ===== */
+function PasswordPrompt({onSuccess,onClose,T}){
+  const[pw,setPw]=useState("");const[err,setErr]=useState(false);
+  const check=()=>{if(pw===ADMIN_PASSWORD){onSuccess();}else{setErr(true);setPw("");}};
+  return <Modal onClose={onClose} T={T}>
+    <div style={{textAlign:"center",padding:"10px 0"}}>
+      <div style={{fontSize:40,marginBottom:12}}>🔐</div>
+      <h2 style={{fontSize:18,fontWeight:800,marginBottom:6}}>Admin Access</h2>
+      <p style={{fontSize:12,color:T.textMuted,marginBottom:20}}>Enter the admin password to continue</p>
+      <input type="password" value={pw} onChange={e=>{setPw(e.target.value);setErr(false);}} onKeyDown={e=>e.key==="Enter"&&check()} placeholder="Password" style={{width:"100%",padding:"12px 16px",borderRadius:12,border:`2px solid ${err?"#ef4444":T.border}`,background:T.bgSubtle,color:T.text,fontSize:15,textAlign:"center",marginBottom:8,outline:"none"}} autoFocus/>
+      {err&&<div style={{fontSize:12,color:"#ef4444",marginBottom:10}}>Incorrect password. Try again.</div>}
+      <div style={{display:"flex",gap:10,marginTop:8}}>
+        <button onClick={onClose} style={{flex:1,padding:12,borderRadius:12,border:`1px solid ${T.border}`,background:T.bgCard,color:T.textSec,fontSize:13,fontWeight:600,cursor:"pointer"}}>Cancel</button>
+        <button onClick={check} style={{flex:1,padding:12,borderRadius:12,border:"none",background:"#6366f1",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>Unlock</button>
+      </div>
+    </div>
+  </Modal>;
+}
+
+/* ===== MESSAGE BOARD ADMIN ===== */
+function MessageBoardAdmin({messages,onSave,onClose,T}){
+  const[msgs,setMsgs]=useState(messages||[]);
+  const[newMsg,setNewMsg]=useState({text:"",author:"LaMonte",emoji:"📢",pinned:false});
+  const emojis=["📢","🔥","💪","🏆","⚡","🎯","💰","📈","🌟","🎉","👑","🚀"];
+  const add=()=>{if(!newMsg.text.trim())return;setMsgs([{id:Date.now(),...newMsg,timestamp:new Date().toLocaleDateString()},...msgs]);setNewMsg({text:"",author:"LaMonte",emoji:"📢",pinned:false});};
+  const rm=id=>setMsgs(msgs.filter(m=>m.id!==id));
+  const pin=id=>setMsgs(msgs.map(m=>m.id===id?{...m,pinned:!m.pinned}:m));
+  return <Modal onClose={onClose} T={T}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}><h2 style={{fontSize:18,fontWeight:800}}>📋 Message Board Admin</h2><button onClick={onClose} style={{background:"none",border:"none",fontSize:24,cursor:"pointer",color:T.textMuted}}>×</button></div>
+    <div style={{background:T.bgSubtle,borderRadius:14,padding:14,marginBottom:16}}>
+      <div style={{fontSize:12,fontWeight:700,marginBottom:8,color:T.textSec}}>NEW MESSAGE</div>
+      <div style={{display:"flex",gap:6,marginBottom:8}}>
+        {emojis.map(e=><button key={e} onClick={()=>setNewMsg({...newMsg,emoji:e})} style={{padding:"6px 8px",borderRadius:8,border:`2px solid ${newMsg.emoji===e?"#6366f1":T.border}`,background:newMsg.emoji===e?"#6366f108":T.bgCard,fontSize:16,cursor:"pointer"}}>{e}</button>)}
+      </div>
+      <textarea value={newMsg.text} onChange={e=>setNewMsg({...newMsg,text:e.target.value})} placeholder="Type your message..." rows={3} style={{width:"100%",padding:"10px 12px",borderRadius:10,border:`1px solid ${T.border}`,background:T.bgCard,color:T.text,fontSize:13,resize:"none",marginBottom:8}}/>
+      <div style={{display:"flex",gap:8,alignItems:"center"}}>
+        <input value={newMsg.author} onChange={e=>setNewMsg({...newMsg,author:e.target.value})} placeholder="From" style={{flex:1,padding:"8px 12px",borderRadius:8,border:`1px solid ${T.border}`,background:T.bgCard,color:T.text,fontSize:12}}/>
+        <label style={{display:"flex",alignItems:"center",gap:4,fontSize:12,color:T.textSec,cursor:"pointer"}}><input type="checkbox" checked={newMsg.pinned} onChange={e=>setNewMsg({...newMsg,pinned:e.target.checked})} style={{cursor:"pointer"}}/>📌 Pin</label>
+        <button onClick={add} style={{padding:"8px 16px",borderRadius:10,border:"none",background:"#6366f1",color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer"}}>+ Post</button>
+      </div>
+    </div>
+    <div style={{maxHeight:300,overflow:"auto"}}>
+      {msgs.length===0&&<div style={{textAlign:"center",padding:"20px 0",color:T.textMuted,fontSize:12}}>No messages yet</div>}
+      {msgs.map(m=><div key={m.id} style={{padding:"10px 12px",borderRadius:10,marginBottom:6,background:m.pinned?"#fffbeb":T.bgSubtle,border:m.pinned?"1px solid #fde68a":`1px solid ${T.borderLight}`,display:"flex",gap:8,alignItems:"flex-start"}}>
+        <span style={{fontSize:18}}>{m.emoji}</span>
+        <div style={{flex:1}}><div style={{fontSize:12,fontWeight:700,color:T.text}}>{m.text}</div><div style={{fontSize:10,color:T.textMuted}}>— {m.author} · {m.timestamp}</div></div>
+        <div style={{display:"flex",gap:4}}>
+          <button onClick={()=>pin(m.id)} title="Pin" style={{background:"none",border:"none",cursor:"pointer",fontSize:14,opacity:m.pinned?1:0.4}}>📌</button>
+          <button onClick={()=>rm(m.id)} style={{background:"none",border:"none",cursor:"pointer",fontSize:14,color:"#ef4444"}}>🗑️</button>
+        </div>
+      </div>)}
+    </div>
+    <div style={{display:"flex",gap:10,marginTop:16}}>
+      <button onClick={onClose} style={{flex:1,padding:12,borderRadius:12,border:`1px solid ${T.border}`,background:T.bgCard,color:T.textSec,fontSize:13,fontWeight:600,cursor:"pointer"}}>Cancel</button>
+      <button onClick={()=>{onSave(msgs);onClose();}} style={{flex:1,padding:12,borderRadius:12,border:"none",background:"#059669",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>💾 Save Messages</button>
+    </div>
+  </Modal>;
+}
+
+function UserGuide({onClose,T}){
+  return <Modal onClose={onClose} T={T}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}><h2 style={{fontSize:20,fontWeight:800}}>📖 User's Guide</h2><button onClick={onClose} style={{background:"none",border:"none",fontSize:24,cursor:"pointer",color:T.textMuted}}>×</button></div>
+    <div style={{fontSize:13,lineHeight:1.8,color:T.textSec}}>
+      <h3 style={{fontSize:15,fontWeight:700,marginTop:12,color:T.text}}>🚀 Getting Started</h3>
+      <p>This dashboard tracks agency sales performance in real-time from Google Sheets. Each producer has their own spreadsheet.</p>
+      <h3 style={{fontSize:15,fontWeight:700,marginTop:12,color:T.text}}>📊 Dashboard Tabs</h3>
+      <p><strong>Dashboard</strong> — Overview with premium, policies, policy breakdown (PL/Life/Commercial), H2H, message board, recent wins.<br/>
+      <strong>Leaderboard</strong> — Race tracks, rankings, life leader, CTM call leaderboard.<br/>
+      <strong>Badges</strong> — 16 achievement badges.<br/>
+      <strong>Breakdown</strong> — Premium by type, platform, top deals.<br/>
+      <strong>Quests</strong> — Goal challenges with XP rewards.<br/>
+      <strong>Reviews</strong> — Customer reviews with premium and policy counts.</p>
+      <h3 style={{fontSize:15,fontWeight:700,marginTop:12,color:T.text}}>🔐 Admin Panel</h3>
+      <p>Password protected. Manage producers, post messages, set periods. Default password: YDI2026</p>
+      <h3 style={{fontSize:15,fontWeight:700,marginTop:12,color:T.text}}>📞 CTM Integration</h3>
+      <p>Set CTM_WEB_APP_URL at top of file after deploying Apps Script. Call data flows into leaderboard and XP automatically.</p>
+      <h3 style={{fontSize:15,fontWeight:700,marginTop:12,color:T.text}}>📋 Policy Breakdown</h3>
+      <p>Personal Lines, Life, and Commercial policies auto-categorized by type column in your spreadsheet.</p>
+    </div>
+  </Modal>;
+}
+
+function AdminPanel({agentsCfg,onSave,onClose,T}){
+  const[ed,setEd]=useState(agentsCfg.map(a=>({...a})));
+  const colors=["#6366f1","#db2777","#0891b2","#d97706","#059669","#7c3aed","#dc2626","#0d9488","#ea580c","#4f46e5"];
+  const add=()=>setEd([...ed,{id:"a_"+Date.now(),name:"",avatar:"👨‍💼",color:colors[ed.length%colors.length],gid:"0",sheetId:"",sound:"chime"}]);
+  const rm=i=>setEd(ed.filter((_,j)=>j!==i));
+  const upd=(i,f,v)=>{const n=[...ed];n[i]={...n[i],[f]:v};setEd(n);};
+  return <Modal onClose={onClose} T={T}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}><h2 style={{fontSize:18,fontWeight:800}}>🔐 Admin — Manage Producers</h2><button onClick={onClose} style={{background:"none",border:"none",fontSize:24,cursor:"pointer",color:T.textMuted}}>×</button></div>
+    {ed.map((a,i)=><div key={i} style={{padding:14,borderRadius:14,marginBottom:10,background:T.bgSubtle,border:`1px solid ${T.borderLight}`}}>
+      <div style={{display:"flex",gap:8,marginBottom:8,alignItems:"center"}}>
+        <input value={a.name} onChange={e=>upd(i,"name",e.target.value)} placeholder="Producer Name" style={{flex:1,padding:"8px 12px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:13,background:T.bgCard,color:T.text}}/>
+        <select value={a.avatar} onChange={e=>upd(i,"avatar",e.target.value)} style={{padding:"8px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:18,background:T.bgCard}}>{AVATAR_OPTIONS.map(av=><option key={av} value={av}>{av}</option>)}</select>
+        <input type="color" value={a.color} onChange={e=>upd(i,"color",e.target.value)} style={{width:36,height:36,border:"none",borderRadius:8,cursor:"pointer"}}/>
+        <button onClick={()=>rm(i)} style={{background:"#fee2e2",border:"none",borderRadius:8,padding:"8px 10px",cursor:"pointer",color:"#dc2626",fontWeight:700}}>🗑️</button>
+      </div>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+        <input value={a.gid} onChange={e=>upd(i,"gid",e.target.value)} placeholder="Sheet Tab GID" style={{flex:1,minWidth:100,padding:"6px 10px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:12,background:T.bgCard,color:T.text}}/>
+        <input value={a.sheetId||""} onChange={e=>upd(i,"sheetId",e.target.value)} placeholder="Separate Sheet ID (optional)" style={{flex:2,minWidth:150,padding:"6px 10px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:12,background:T.bgCard,color:T.text}}/>
+        <select value={a.sound} onChange={e=>upd(i,"sound",e.target.value)} style={{padding:"6px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:12,background:T.bgCard,color:T.text}}>{SOUND_OPTIONS.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select>
+        <button onClick={()=>playSound(a.sound)} style={{padding:"6px 8px",borderRadius:8,border:`1px solid ${T.border}`,background:T.bgCard,cursor:"pointer",fontSize:12}}>▶️</button>
+      </div>
+    </div>)}
+    <button onClick={add} style={{width:"100%",padding:12,borderRadius:12,border:`2px dashed ${T.border}`,background:"transparent",color:T.textSec,fontSize:13,fontWeight:600,cursor:"pointer",marginBottom:16}}>+ Add Producer</button>
+    <div style={{display:"flex",gap:10}}>
+      <button onClick={onClose} style={{flex:1,padding:12,borderRadius:12,border:`1px solid ${T.border}`,background:T.bgCard,color:T.textSec,fontSize:13,fontWeight:600,cursor:"pointer"}}>Cancel</button>
+      <button onClick={()=>{onSave(ed.filter(a=>a.name&&a.gid));onClose();}} style={{flex:1,padding:12,borderRadius:12,border:"none",background:"#6366f1",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>💾 Save</button>
+    </div>
+  </Modal>;
+}
+
+function PeriodSettings({periods,onSave,onClose,T}){
+  const[ed,setEd]=useState(periods.map(p=>({...p})));
+  const add=()=>setEd([...ed,{name:"",start:"",end:""}]);
+  const rm=i=>setEd(ed.filter((_,j)=>j!==i));
+  const upd=(i,f,v)=>{const n=[...ed];n[i]={...n[i],[f]:v};setEd(n);};
+  return <Modal onClose={onClose} T={T}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}><h2 style={{fontSize:18,fontWeight:800}}>📅 Contest Periods</h2><button onClick={onClose} style={{background:"none",border:"none",fontSize:24,cursor:"pointer",color:T.textMuted}}>×</button></div>
+    {ed.map((p,i)=>{const isCur=(()=>{const t=new Date();t.setHours(0,0,0,0);if(!p.start||!p.end)return false;return t>=new Date(p.start+"T00:00:00")&&t<=new Date(p.end+"T23:59:59");})();
+      return <div key={i} style={{padding:14,borderRadius:14,marginBottom:10,background:isCur?"#f0fdf4":T.bgSubtle,border:isCur?"1px solid #bbf7d0":`1px solid ${T.borderLight}`,position:"relative"}}>
+        {isCur&&<div style={{position:"absolute",top:8,right:12,fontSize:9,background:"#059669",color:"#fff",padding:"2px 8px",borderRadius:6,fontWeight:700}}>CURRENT</div>}
+        <div style={{display:"flex",gap:8,marginBottom:8,alignItems:"center"}}>
+          <input value={p.name} onChange={e=>upd(i,"name",e.target.value)} placeholder="Period Name" style={{flex:1,padding:"8px 12px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:13,fontWeight:600,background:T.bgCard,color:T.text}}/>
+          <button onClick={()=>rm(i)} style={{background:"#fee2e2",border:"none",borderRadius:8,padding:"8px 10px",cursor:"pointer",color:"#dc2626"}}>🗑️</button>
+        </div>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          <div style={{flex:1}}><div style={{fontSize:10,color:T.textMuted,marginBottom:3}}>START</div><input type="date" value={p.start} onChange={e=>upd(i,"start",e.target.value)} style={{width:"100%",padding:"6px 10px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:13,background:T.bgCard,color:T.text}}/></div>
+          <span style={{marginTop:16,color:T.textMuted}}>→</span>
+          <div style={{flex:1}}><div style={{fontSize:10,color:T.textMuted,marginBottom:3}}>END</div><input type="date" value={p.end} onChange={e=>upd(i,"end",e.target.value)} style={{width:"100%",padding:"6px 10px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:13,background:T.bgCard,color:T.text}}/></div>
+        </div>
+      </div>;})}
+    <button onClick={add} style={{width:"100%",padding:12,borderRadius:12,border:`2px dashed ${T.border}`,background:"transparent",color:T.textSec,fontSize:13,fontWeight:600,cursor:"pointer",marginBottom:16}}>+ Add Period</button>
+    <div style={{display:"flex",gap:10}}>
+      <button onClick={onClose} style={{flex:1,padding:12,borderRadius:12,border:`1px solid ${T.border}`,background:T.bgCard,color:T.textSec,fontSize:13,fontWeight:600,cursor:"pointer"}}>Cancel</button>
+      <button onClick={()=>{onSave(ed.filter(p=>p.name&&p.start&&p.end));onClose();}} style={{flex:1,padding:12,borderRadius:12,border:"none",background:"#6366f1",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>💾 Save Periods</button>
+    </div>
+  </Modal>;
+}
+
+function AvatarPicker({current,onSelect,onClose,T}){
+  return <Modal onClose={onClose} T={T}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}><h2 style={{fontSize:18,fontWeight:800}}>Choose Your Avatar</h2><button onClick={onClose} style={{background:"none",border:"none",fontSize:24,cursor:"pointer",color:T.textMuted}}>×</button></div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:10}}>
+      {AVATAR_OPTIONS.map(av=><button key={av} onClick={()=>{onSelect(av);onClose();}} style={{padding:16,borderRadius:14,border:av===current?`3px solid #6366f1`:`1px solid ${T.border}`,background:av===current?`#6366f108`:T.bgSubtle,fontSize:32,cursor:"pointer",textAlign:"center"}}>{av}</button>)}
+    </div>
+  </Modal>;
+}
+
+/* ===== RACE TRACKS ===== */
+function RaceTrack({agents,field,maxVal,icon,title,T}){
+  const sorted=[...agents].sort((a,b)=>(b[field]||0)-(a[field]||0));
+  return <div style={{background:T.bgCard,borderRadius:16,padding:20,border:`1px solid ${T.border}`,marginBottom:16,boxShadow:T.shadow}}>
+    <div style={{fontSize:14,fontWeight:700,marginBottom:14}}>{title}</div>
+    {sorted.map((a,i)=>{const val=a[field]||0;const pct=maxVal>0?Math.min((val/maxVal)*100,100):0;
+      return <div key={a.id} style={{marginBottom:12}}>
+        <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:4,color:T.textSec}}>
+          <span style={{fontWeight:700,color:a.color}}>{a.avatar} {a.name.split(" ")[0]}{i===0&&val>0?" — LEADER":""}</span>
+          <span style={{fontWeight:700}}>{field==="totalRevenue"?fmtPrice(val):val+" policies"}</span>
+        </div>
+        <div style={{position:"relative",height:28,background:T.bgSubtle,borderRadius:14,overflow:"hidden"}}>
+          <div style={{width:`${Math.max(pct,4)}%`,height:"100%",background:`linear-gradient(90deg, ${a.color}44, ${a.color})`,borderRadius:14,transition:"width 1.5s"}}/>
+          <div style={{position:"absolute",right:`${100-Math.max(pct,4)}%`,top:"50%",transform:"translateY(-50%)",fontSize:20,animation:field==="totalRevenue"?"raceMove 0.6s infinite":"gallop 0.5s infinite",marginRight:-12}}>{icon}</div>
+        </div>
+      </div>;})}
+  </div>;
+}
+
+/* ===== DAILY MOTIVATION ===== */
+function DailyMotivation({T}){
+  const today=new Date();const idx=(today.getFullYear()*365+today.getMonth()*31+today.getDate())%MOTIVATIONAL_QUOTES.length;
+  const q=MOTIVATIONAL_QUOTES[idx];
+  return <div style={{background:`linear-gradient(135deg, #1a3c6e, #2563eb)`,borderRadius:16,padding:"18px 20px",marginBottom:14,position:"relative",overflow:"hidden"}}>
+    <div style={{position:"absolute",top:-20,right:-20,fontSize:80,opacity:0.08,transform:"rotate(15deg)"}}>💬</div>
+    <div style={{fontSize:10,fontWeight:700,color:"#93c5fd",letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>Daily Motivation</div>
+    <div style={{fontSize:15,fontWeight:700,color:"#ffffff",lineHeight:1.5,marginBottom:8,fontStyle:"italic"}}>"{q.quote}"</div>
+    <div style={{fontSize:11,color:"#93c5fd",fontWeight:600}}>— {q.author}</div>
+  </div>;
+}
+
+/* ===== MESSAGE BOARD (READ-ONLY) ===== */
+function MessageBoard({messages,T}){
+  const[collapsed,setCollapsed]=useState(false);
+  const pinned=messages.filter(m=>m.pinned);
+  const regular=messages.filter(m=>!m.pinned);
+  const sorted=[...pinned,...regular];
+  if(messages.length===0)return null;
+  return <div style={{background:T.bgCard,borderRadius:16,border:`1px solid ${T.border}`,marginBottom:14,overflow:"hidden",boxShadow:T.shadow}}>
+    <div onClick={()=>setCollapsed(!collapsed)} style={{display:"flex",alignItems:"center",gap:8,padding:"12px 18px",cursor:"pointer",borderBottom:collapsed?"none":`1px solid ${T.borderLight}`}}>
+      <span style={{fontSize:16}}>📋</span>
+      <span style={{fontSize:13,fontWeight:700,flex:1}}>Team Message Board</span>
+      <span style={{fontSize:11,color:T.textMuted,background:T.bgSubtle,padding:"2px 8px",borderRadius:10,fontWeight:700}}>{messages.length}</span>
+      <span style={{fontSize:12,color:T.textMuted}}>{collapsed?"▼":"▲"}</span>
+    </div>
+    {!collapsed&&<div style={{padding:"10px 14px",maxHeight:220,overflow:"auto"}}>
+      {sorted.map(m=><div key={m.id} style={{display:"flex",gap:10,padding:"8px 10px",borderRadius:10,marginBottom:6,background:m.pinned?"#fffbeb":T.bgSubtle,border:m.pinned?"1px solid #fde68a":`1px solid ${T.borderLight}`,alignItems:"flex-start"}}>
+        <span style={{fontSize:20,flexShrink:0}}>{m.emoji}</span>
+        <div style={{flex:1}}>
+          {m.pinned&&<span style={{fontSize:8,background:"#f59e0b",color:"#fff",padding:"1px 5px",borderRadius:4,fontWeight:700,marginBottom:4,display:"inline-block"}}>📌 PINNED</span>}
+          <div style={{fontSize:12,fontWeight:600,color:T.text,lineHeight:1.4}}>{m.text}</div>
+          <div style={{fontSize:10,color:T.textMuted,marginTop:2}}>— {m.author} · {m.timestamp}</div>
+        </div>
+      </div>)}
+    </div>}
+  </div>;
+}
+
+/* ===== POLICY BREAKDOWN PANEL ===== */
+function PolicyBreakdown({breakdown,totalPolicies,totalRevenue,color,T}){
+  const cats=[
+    {key:"personal",label:"Personal Lines",icon:"🏠",color:"#6366f1"},
+    {key:"life",label:"Life",icon:"❤️",color:"#db2777"},
+    {key:"commercial",label:"Commercial",icon:"🏢",color:"#059669"},
+  ];
+  return <div style={{background:T.bgCard,borderRadius:16,padding:18,border:`1px solid ${T.border}`,marginBottom:14,boxShadow:T.shadow}}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+      <div style={{fontSize:14,fontWeight:700}}>📋 Policy Breakdown</div>
+      <div style={{fontSize:12,color:T.textMuted}}>{totalPolicies} total · {fmtShort(totalRevenue)}</div>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:12}}>
+      {cats.map(c=>{const d=breakdown[c.key];return <div key={c.key} style={{padding:"12px 10px",borderRadius:12,textAlign:"center",background:`${c.color}08`,border:`1px solid ${c.color}22`}}>
+        <div style={{fontSize:20,marginBottom:4}}>{c.icon}</div>
+        <div style={{fontSize:9,color:T.textMuted,textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>{c.label}</div>
+        <div style={{fontSize:18,fontWeight:800,color:c.color}}>{d.count}</div>
+        <div style={{fontSize:10,color:T.textMuted,fontWeight:600}}>{fmtShort(d.premium)}</div>
+      </div>;})}
+    </div>
+    {cats.map((c,i)=>{const d=breakdown[c.key];return <div key={c.key} style={{marginBottom:i<cats.length-1?8:0}}>
+      <div style={{display:"flex",justifyContent:"space-between",fontSize:10,marginBottom:3}}><span style={{color:T.textSec}}>{c.icon} {c.label}</span><span style={{color:c.color,fontWeight:700}}>{totalPolicies>0?Math.round((d.count/totalPolicies)*100):0}%</span></div>
+      <MiniBar value={d.count} max={totalPolicies||1} color={c.color} height={5} T={T}/>
+    </div>;})}
+  </div>;
+}
+
+/* ===== MAIN APP ===== */
+function App(){
+  const[dark,setDark]=useState(()=>loadLS("yd_dark",false));
+  const T=dark?DARK_THEME:LIGHT;
+  const[agentsCfg,setAgentsCfg]=useState(()=>{const v=loadLS("yd_cfg_v","");if(v!=="v11b"){saveLS("yd_cfg_v","v11b");saveLS("yd_agents",DEFAULT_AGENTS);return DEFAULT_AGENTS;}return loadLS("yd_agents",DEFAULT_AGENTS);});
+  const[periods,setPeriods]=useState(()=>loadLS("yd_periods",DEFAULT_PERIODS));
+  const[selPeriodIdx,setSelPeriodIdx]=useState(()=>getCurPeriodIdx(loadLS("yd_periods",DEFAULT_PERIODS)));
+  const[periodOverridden,setPeriodOverridden]=useState(false);
+  const[allData,setAllData]=useState([]);
+  const[agents,setAgents]=useState([]);
+  const[loading,setLoading]=useState(true);
+  const[lastRefresh,setLastRefresh]=useState(null);
+  const[refreshing,setRefreshing]=useState(false);
+  const[tab,setTab]=useState("overview");
+  const[selAgent,setSelAgent]=useState(agentsCfg[0]?.id||"joey");
+  const[hoverBadge,setHoverBadge]=useState(null);
+  const[newPolicy,setNewPolicy]=useState(null);
+  const[showAdmin,setShowAdmin]=useState(false);
+  const[showPasswordPrompt,setShowPasswordPrompt]=useState(false);
+  const[adminUnlocked,setAdminUnlocked]=useState(false);
+  const[showPeriods,setShowPeriods]=useState(false);
+  const[showGuide,setShowGuide]=useState(false);
+  const[showAvatar,setShowAvatar]=useState(false);
+  const[showMsgAdmin,setShowMsgAdmin]=useState(false);
+  const[messages,setMessages]=useState(()=>loadLS("yd_messages",[]));
+  const[ctmData,setCtmData]=useState(null);
+  const prevCount=useRef(null),prevAgents=useRef([]);
+  const{canvasRef,launch:launchConfetti}=useConfetti();
+
+  const applyFilter=useCallback((raw,idx)=>{const p=periods[idx];if(!p)return raw;return raw.map(a=>{const f=filterByPeriod(a.allSales||a.sales,p);return{...a,sales:f,totalRevenue:f.reduce((s,x)=>s+x.price,0),totalPolicies:f.length};});},[periods]);
+
+  const fetchAll=useCallback(async()=>{
+    const results=[];
+    for(const ag of agentsCfg){
+      try{const csv=await fetchCSV(ag.sheetId,ag.gid);if(!csv){results.push({...ag,allSales:[],sales:[],totalRevenue:0,totalPolicies:0});continue;}
+        const parsed=Papa.parse(csv,{header:true,skipEmptyLines:true});const headers=parsed.meta.fields||[];const allSales=parseRows(parsed.data,headers);
+        results.push({...ag,allSales,sales:allSales,totalRevenue:allSales.reduce((s,p)=>s+p.price,0),totalPolicies:allSales.length});
+      }catch(e){results.push({...ag,allSales:[],sales:[],totalRevenue:0,totalPolicies:0});}
+    }
+    setAllData(results);
+    const filtered=applyFilter(results,selPeriodIdx);
+    const newTotal=filtered.reduce((s,a)=>s+a.totalPolicies,0);
+    if(prevCount.current!==null&&newTotal>prevCount.current){
+      for(const ag of filtered){const prev=prevAgents.current.find(a=>a.id===ag.id);
+        if(prev&&ag.totalPolicies>prev.totalPolicies){const newest=ag.sales[ag.sales.length-1];
+          if(newest){setNewPolicy({...newest,agentName:ag.name});playSound(ag.sound||"chime");launchConfetti();break;}}}
+    }
+    prevCount.current=newTotal;prevAgents.current=filtered;setAgents(filtered);setLastRefresh(new Date());setLoading(false);
+  },[agentsCfg,applyFilter,selPeriodIdx,launchConfetti]);
+
+  // CTM fetch
+  const fetchCTM=useCallback(async()=>{
+    if(!CTM_WEB_APP_URL)return;
+    try{const r=await fetch(CTM_WEB_APP_URL);const d=await r.json();setCtmData(d.producers||null);}catch(e){console.log("CTM fetch error",e);}
+  },[]);
+
+  useEffect(()=>{if(allData.length>0){const f=applyFilter(allData,selPeriodIdx);setAgents(f);prevCount.current=f.reduce((s,a)=>s+a.totalPolicies,0);prevAgents.current=f;}},[selPeriodIdx,periods,allData,applyFilter]);
+  useEffect(()=>{fetchAll();fetchCTM();},[]);
+  useEffect(()=>{const i=setInterval(()=>{fetchAll();fetchCTM();},5*60*1000);return()=>clearInterval(i);},[fetchAll,fetchCTM]);
+
+  const handleRefresh=useCallback(async()=>{setRefreshing(true);await Promise.all([fetchAll(),fetchCTM()]);setRefreshing(false);},[fetchAll,fetchCTM]);
+  const saveAgentsCfg=useCallback(cfg=>{setAgentsCfg(cfg);saveLS("yd_agents",cfg);setTimeout(fetchAll,200);},[fetchAll]);
+  const savePeriods=useCallback(p=>{setPeriods(p);saveLS("yd_periods",p);if(!periodOverridden)setSelPeriodIdx(getCurPeriodIdx(p));},[periodOverridden]);
+  // Auto-update period every hour if not overridden
+  useEffect(()=>{if(!periodOverridden){const auto=getCurPeriodIdx(periods);setSelPeriodIdx(auto);}const i=setInterval(()=>{if(!periodOverridden)setSelPeriodIdx(getCurPeriodIdx(periods));},60*60*1000);return()=>clearInterval(i);},[periods,periodOverridden]);
+  const saveMessages=useCallback(msgs=>{setMessages(msgs);saveLS("yd_messages",msgs);},[]);
+  const toggleDark=()=>{setDark(d=>{saveLS("yd_dark",!d);return!d;});};
+  const updateMyAvatar=(av)=>{const cfg=agentsCfg.map(a=>a.id===selAgent?{...a,avatar:av}:a);saveAgentsCfg(cfg);};
+  const handleAdminClick=()=>{if(adminUnlocked){setShowAdmin(true);}else{setShowPasswordPrompt(true);}};
+
+  if(loading&&agents.length===0){return <div style={{minHeight:"100vh",background:T.bg,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,color:T.text}}><div style={{fontSize:48,animation:"spin 1s linear infinite"}}>📊</div><div style={{fontSize:18,fontWeight:700}}>Loading from Google Sheets...</div></div>;}
+
+  const curPeriod=periods[selPeriodIdx];
+  const isCurPeriod=selPeriodIdx===getCurPeriodIdx(periods);
+  const agent=agents.find(a=>a.id===selAgent)||agents[0];
+  const sales=agent?.sales||[];const rev=agent?.totalRevenue||0;const pols=agent?.totalPolicies||0;
+  const rTier=getTier(revTiers,rev);const pTier=getTier(polTiers,pols);
+  const badges=getBadges(sales);const earned=badges.filter(a=>a.earned).length;
+  const agentCTM=ctmData?ctmData[agent?.name]||ctmData[agent?.name?.split(" ")[0]]||null:null;
+  const xp=calcXP(sales,agentCTM);const lvl=getLevel(xp);
+  const teamRev=agents.reduce((s,a)=>s+a.totalRevenue,0);const teamPols=agents.reduce((s,a)=>s+a.totalPolicies,0);
+  const sorted=[...agents].sort((a,b)=>b.totalRevenue-a.totalRevenue);
+  const rankOf=sorted.findIndex(a=>a.id===selAgent)+1;
+  const streak=getStreak(sales);
+  const breakdown=getPolicyBreakdown(sales);
+  const typeBreak={};sales.forEach(s=>{typeBreak[s.type]=(typeBreak[s.type]||0)+s.price;});
+  const platBreak={};sales.forEach(s=>{platBreak[s.platform]=(platBreak[s.platform]||0)+1;});
+  const leadBreak={};sales.forEach(s=>{if(s.leadSource)leadBreak[s.leadSource]=(leadBreak[s.leadSource]||0)+1;});
+  const bindTimes=sales.filter(s=>s.daysToBindFromLead!==null).map(s=>s.daysToBindFromLead);
+  const avgBind=bindTimes.length>0?(bindTimes.reduce((a,b)=>a+b,0)/bindTimes.length).toFixed(1):null;
+  const lifeSales=sales.filter(s=>s.type.toLowerCase().includes("life"));
+  const commCount=sales.filter(s=>categorizePolicy(s.type)==="commercial").length;
+  const maxTeamRev=Math.max(...agents.map(a=>a.totalRevenue),1);
+  const maxTeamPol=Math.max(...agents.map(a=>a.totalPolicies),1);
+  const allReviews=agents.flatMap(a=>a.sales.filter(s=>s.review&&s.review.trim()).map(s=>({...s,agentName:a.name,agentAvatar:a.avatar,agentColor:a.color})));
+  const teamGoalTier=getTier(TEAM_GOALS,teamRev);
+  const lifeBoard=agents.map(a=>{const ls=a.sales.filter(s=>s.type.toLowerCase().includes("life"));return{...a,lifeCount:ls.length,lifePrem:ls.reduce((s,p)=>s+p.price,0)};}).sort((a,b)=>b.lifePrem-a.lifePrem);
+
+  const tabList=[{id:"overview",label:"Dashboard",icon:"📊"},{id:"leaderboard",label:"Leaderboard",icon:"🏅"},{id:"achievements",label:"Badges",icon:"🏆"},{id:"breakdown",label:"Breakdown",icon:"📈"},{id:"quests",label:"Quests",icon:"⚔️"},{id:"reviews",label:"Reviews",icon:"⭐"}];
+
+  const quests=[
+    {cat:"💰 Revenue",name:"$25K",progress:rev,target:25000,reward:"500 XP",icon:"💵"},{cat:"💰 Revenue",name:"$50K",progress:rev,target:50000,reward:"750 XP",icon:"🏅"},{cat:"💰 Revenue",name:"$75K",progress:rev,target:75000,reward:"1K XP",icon:"🔥"},{cat:"💰 Revenue",name:"$100K",progress:rev,target:100000,reward:"2K XP",icon:"👑"},
+    {cat:"📋 Policies",name:"Bind 15",progress:pols,target:15,reward:"400 XP",icon:"📋"},{cat:"📋 Policies",name:"Bind 20",progress:pols,target:20,reward:"600 XP",icon:"📦"},{cat:"📋 Policies",name:"Bind 30",progress:pols,target:30,reward:"1K XP",icon:"🚀"},
+    {cat:"🏢 Lines",name:"5 Commercial",progress:commCount,target:5,reward:"500 XP",icon:"🏢"},{cat:"🏢 Lines",name:"3 Life",progress:lifeSales.length,target:3,reward:"500 XP",icon:"❤️"},
+    {cat:"🔥 Streaks",name:"4-Week",progress:streak.current,target:4,reward:"600 XP",icon:"🔥"},{cat:"🔥 Streaks",name:"8-Week",progress:streak.best,target:8,reward:"1.2K XP",icon:"⚡"},
+    {cat:"🤝 Referrals",name:"3 Referrals",progress:sales.filter(s=>s.referral).length,target:3,reward:"750 XP",icon:"🤝"},
+    ...(ctmData?[{cat:"📞 Calls",name:"50 Answered",progress:agentCTM?.answeredCalls||0,target:50,reward:"750 XP",icon:"📞"},{cat:"📞 Calls",name:"20 Inbound Leads",progress:agentCTM?.inboundLeads||0,target:20,reward:"500 XP",icon:"🎯"}]:[]),
+  ];
+  const questCats=[...new Set(quests.map(q=>q.cat))];
+
+  return(
+    <div style={{minHeight:"100vh",background:T.bg,color:T.text,fontFamily:"'Segoe UI',-apple-system,sans-serif",padding:20,position:"relative"}}>
+      <canvas ref={canvasRef} style={{position:"fixed",top:0,left:0,width:"100%",height:"100%",pointerEvents:"none",zIndex:9998}}/>
+
+      {/* Toast */}
+      {newPolicy&&<div style={{position:"fixed",top:20,left:"50%",transform:"translateX(-50%)",background:T.bgCard,borderRadius:16,padding:"16px 24px",boxShadow:"0 8px 32px rgba(0,0,0,0.15)",zIndex:9999,animation:"toastIn 0.5s",display:"flex",alignItems:"center",gap:14,maxWidth:500,color:T.text}}>
+        <div style={{fontSize:32}}>🎉</div><div><div style={{fontSize:14,fontWeight:800}}>New Policy Bound!</div><div style={{fontSize:13,color:T.textSec}}>{newPolicy.agentName} closed <strong>{newPolicy.name}</strong> — <strong style={{color:"#10b981"}}>{fmtPrice(newPolicy.price||0)}</strong></div></div>
+        <button onClick={()=>setNewPolicy(null)} style={{background:"none",border:"none",fontSize:18,cursor:"pointer",color:T.textMuted}}>×</button></div>}
+
+      {/* Modals */}
+      {showPasswordPrompt&&<PasswordPrompt onSuccess={()=>{setAdminUnlocked(true);setShowPasswordPrompt(false);setShowAdmin(true);}} onClose={()=>setShowPasswordPrompt(false)} T={T}/>}
+      {showAdmin&&<AdminPanel agentsCfg={agentsCfg} onSave={saveAgentsCfg} onClose={()=>setShowAdmin(false)} T={T}/>}
+      {showPeriods&&<PeriodSettings periods={periods} onSave={savePeriods} onClose={()=>setShowPeriods(false)} T={T}/>}
+      {showGuide&&<UserGuide onClose={()=>setShowGuide(false)} T={T}/>}
+      {showAvatar&&<AvatarPicker current={agent?.avatar} onSelect={updateMyAvatar} onClose={()=>setShowAvatar(false)} T={T}/>}
+      {showMsgAdmin&&<MessageBoardAdmin messages={messages} onSave={saveMessages} onClose={()=>setShowMsgAdmin(false)} T={T}/>}
+
+      <div style={{maxWidth:920,margin:"0 auto"}}>
+        {/* HEADER */}
+        <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:10}}>
+          <img src={LOGO_B64} alt="YDI" style={{width:56,height:56,borderRadius:14,objectFit:"contain",background:dark?"#334155":"#f1f5f9",padding:4}}/>
+          <div style={{flex:1}}>
+            <div style={{fontSize:22,fontWeight:900,letterSpacing:-0.5}}>Young Douglas Insurance Services</div>
+            <div style={{fontSize:11,color:T.textMuted,letterSpacing:2,textTransform:"uppercase",fontWeight:600}}>Live Sales Dashboard</div>
+          </div>
+          <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap",justifyContent:"flex-end"}}>
+            <button onClick={()=>setShowGuide(true)} style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${T.border}`,background:T.bgCard,cursor:"pointer",fontSize:12,color:T.textSec}}>📖</button>
+            <button onClick={toggleDark} style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${T.border}`,background:T.bgCard,cursor:"pointer",fontSize:14}}>{dark?"☀️":"🌙"}</button>
+            <button onClick={()=>{if(adminUnlocked){setShowMsgAdmin(true);}else{setShowPasswordPrompt(true);setTimeout(()=>{/* after unlock */},100);}}} style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${T.border}`,background:T.bgCard,cursor:"pointer",fontSize:11,color:T.textSec,fontWeight:600}}>📋 Board</button>
+            <button onClick={handleAdminClick} style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${T.border}`,background:T.bgCard,cursor:"pointer",fontSize:12,color:T.textSec}}>🔐 Admin</button>
+            <button onClick={handleRefresh} disabled={refreshing} style={{padding:"6px 12px",borderRadius:8,border:`1px solid ${T.border}`,background:refreshing?T.bgSubtle:T.bgCard,color:refreshing?T.textMuted:T.textSec,fontSize:11,cursor:refreshing?"wait":"pointer",fontWeight:600}}>{refreshing?"⏳":"🔄 Refresh"}</button>
+          </div>
+        </div>
+
+        {/* AGENT ROW */}
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+          <div onClick={()=>setShowAvatar(true)} style={{width:48,height:48,borderRadius:14,background:`linear-gradient(135deg,${agent.color},${agent.color}cc)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,boxShadow:`0 4px 14px ${agent.color}30`,cursor:"pointer"}}>{agent.avatar}</div>
+          <div style={{flex:1}}><div style={{fontSize:18,fontWeight:800}}>{agent.name}</div><div style={{fontSize:11,color:T.textMuted}}>Rank #{rankOf} · Level {lvl.current.level} · {xp.toLocaleString()} XP{agentCTM?` · 📞 ${agentCTM.answeredCalls||0} calls`:""}</div></div>
+        </div>
+
+        {/* PERIOD SELECTOR */}
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10,padding:"8px 14px",background:isCurPeriod?"#f0fdf408":"#fffbeb08",borderRadius:12,border:`1px solid ${isCurPeriod?"#bbf7d044":T.border}`}}>
+          <span style={{fontSize:14}}>📅</span>
+          {adminUnlocked?(
+            <select value={selPeriodIdx} onChange={e=>{setSelPeriodIdx(Number(e.target.value));setPeriodOverridden(Number(e.target.value)!==getCurPeriodIdx(periods));}} style={{flex:1,padding:"5px 8px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:12,fontWeight:600,background:T.bgCard,color:T.text,cursor:"pointer"}}>
+              {periods.map((p,i)=><option key={i} value={i}>{p.name}{i===getCurPeriodIdx(periods)?" (Current)":""} — {fmtPD(p.start)} to {fmtPD(p.end)}</option>)}
+            </select>
+          ):(
+            <div style={{flex:1,display:"flex",alignItems:"center",gap:8}}>
+              <span style={{fontSize:12,fontWeight:700,color:T.text}}>{curPeriod?.name||"All Time"}</span>
+              <span style={{fontSize:10,color:T.textMuted}}>{fmtPD(curPeriod?.start)} → {fmtPD(curPeriod?.end)}</span>
+            </div>
+          )}
+          <button onClick={()=>{if(adminUnlocked){setShowPeriods(true);}else{setShowPasswordPrompt(true);}}} style={{padding:"5px 10px",borderRadius:8,border:`1px solid ${T.border}`,background:T.bgCard,color:T.textSec,fontSize:11,cursor:"pointer",fontWeight:600}}>⚙️ Periods</button>
+          {periodOverridden&&adminUnlocked&&<button onClick={()=>{setPeriodOverridden(false);setSelPeriodIdx(getCurPeriodIdx(periods));}} style={{padding:"5px 8px",borderRadius:8,border:"none",background:"#fef3c7",color:"#b45309",fontSize:10,cursor:"pointer",fontWeight:700}}>↺ Auto</button>}
+        </div>
+
+        {lastRefresh&&<div style={{display:"flex",alignItems:"center",gap:6,marginBottom:10,fontSize:11,color:"#059669"}}><span style={{display:"inline-block",width:6,height:6,borderRadius:"50%",background:"#059669",animation:"pulse 2s infinite"}}/>LIVE — {lastRefresh.toLocaleTimeString()} · Auto 5 min{CTM_WEB_APP_URL&&ctmData?<span style={{marginLeft:8,color:"#6366f1"}}>· 📞 CTM Live</span>:null}</div>}
+
+        {/* AGENT TABS */}
+        <div style={{display:"flex",gap:5,marginBottom:12,flexWrap:"wrap"}}>
+          {agents.map(a=>{const aR=sorted.findIndex(x=>x.id===a.id)+1,isL=aR===1,isMe=a.id===selAgent;return(
+            <button key={a.id} onClick={()=>setSelAgent(a.id)} style={{display:"flex",alignItems:"center",gap:6,padding:"7px 12px",borderRadius:12,border:`1px solid ${isMe?a.color+"44":T.border}`,background:isMe?`${a.color}08`:T.bgCard,cursor:"pointer",color:isMe?T.text:T.textSec,flex:1,minWidth:100,position:"relative"}}>
+              <span onClick={e=>{e.stopPropagation();setSelAgent(a.id);setShowAvatar(true);}} title="Change avatar" style={{fontSize:16,position:"relative",cursor:"pointer",display:"inline-block"}} >
+                {a.avatar}
+                {isL&&a.totalRevenue>0&&<span style={{position:"absolute",top:-8,right:-8,fontSize:9}}>👑</span>}
+                <span style={{position:"absolute",bottom:-4,right:-6,fontSize:8,background:T.bgSubtle,borderRadius:4,padding:"0 2px",opacity:0.7,pointerEvents:"none"}}>✏️</span>
+              </span>
+              <div style={{textAlign:"left",minWidth:0}}><div style={{fontSize:11,fontWeight:700,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{a.name.split(" ")[0]}</div><div style={{fontSize:10,color:isMe?a.color:T.textMuted}}>${(a.totalRevenue/1000).toFixed(1)}K · {a.totalPolicies}</div></div>
+            </button>);})}
+        </div>
+
+        {lvl.next&&<div style={{marginBottom:14}}><div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:T.textMuted,marginBottom:3}}><span>Lvl {lvl.current.level}</span><span>{Math.max(0,xp-lvl.current.xp)}/{lvl.next.xp-lvl.current.xp} XP</span></div><MiniBar value={Math.max(0,xp-lvl.current.xp)} max={lvl.next.xp-lvl.current.xp} color={agent.color} height={5} T={T}/></div>}
+
+        {/* MAIN TABS */}
+        <div style={{display:"flex",gap:2,marginBottom:20,background:T.bgSubtle,borderRadius:12,padding:3}}>
+          {tabList.map(t=><button key={t.id} onClick={()=>setTab(t.id)} style={{flex:1,padding:"9px 4px",borderRadius:10,border:"none",background:tab===t.id?T.bgCard:"transparent",color:tab===t.id?agent.color:T.textMuted,cursor:"pointer",fontSize:11,fontWeight:600,boxShadow:tab===t.id?T.shadow:"none",whiteSpace:"nowrap"}}>{t.icon} {t.label}</button>)}
+        </div>
+
+        {/* ====== OVERVIEW ====== */}
+        {tab==="overview"&&<div style={{animation:"slideUp 0.4s"}}>
+          {/* Team Goals */}
+          <div style={{background:T.bgCard,borderRadius:16,padding:18,border:`1px solid ${T.border}`,marginBottom:14,boxShadow:T.shadow}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:12}}><div style={{fontSize:14,fontWeight:700}}>🏆 Team Goals</div><div style={{display:"flex",gap:14,fontSize:12}}><span style={{color:"#059669",fontWeight:700}}>{fmtPrice(teamRev)}</span><span style={{color:"#6366f1",fontWeight:700}}>{teamPols} policies</span></div></div>
+            <div style={{display:"flex",gap:5,marginBottom:12}}>{TEAM_GOALS.map((g,i)=>{const ok=teamRev>=g.target;return <div key={i} style={{flex:1,textAlign:"center",padding:"8px 3px",background:ok?"#fffbeb":T.bgSubtle,borderRadius:10,border:ok?"1px solid #fde68a":`1px solid ${T.borderLight}`,opacity:ok?1:0.5}}><div style={{fontSize:18}}>{g.icon}</div><div style={{fontSize:8,fontWeight:700,color:ok?g.color:T.textMuted,marginTop:2}}>{g.name}</div><div style={{fontSize:8,color:T.textMuted}}>${g.target/1000}K</div></div>;})}</div>
+            {teamGoalTier.next&&<><div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:T.textSec,marginBottom:4}}><span>{teamGoalTier.current?`${teamGoalTier.current.icon} ${teamGoalTier.current.name}`:"🏁 Start"}</span><span>${(teamGoalTier.next.target-teamRev).toLocaleString()} to {teamGoalTier.next.name}</span></div><MiniBar value={teamRev} max={teamGoalTier.next.target} color="#f59e0b" height={8} T={T}/></>}
+          </div>
+
+          {/* Daily Motivation */}
+          <DailyMotivation T={T}/>
+
+          {/* Message Board */}
+          <MessageBoard messages={messages} T={T}/>
+
+          {/* Stats */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:14}}>
+            {[{l:"Premium",v:fmtPrice(rev),s:rTier.current?`${rTier.current.icon} ${rTier.current.name}`:"🏁 Unranked",c:"#059669"},{l:"Policies",v:pols,s:pTier.current?`${pTier.current.icon} ${pTier.current.name}`:"🏁 Start",c:agent.color},{l:"Streak",v:`${streak.current}wk`,s:`Best: ${streak.best}wk`,c:"#d97706"},{l:"Avg Bind",v:avgBind?`${avgBind}d`:"—",s:avgBind?"Lead→Bound":"",c:"#7c3aed"}].map((c,i)=><div key={i} style={{background:T.bgCard,borderRadius:14,padding:"14px 12px",border:`1px solid ${T.border}`,position:"relative",overflow:"hidden",boxShadow:T.shadow}}><div style={{position:"absolute",top:0,left:0,right:0,height:3,background:c.c}}/><div style={{fontSize:9,color:T.textMuted,textTransform:"uppercase",letterSpacing:1.5,marginBottom:3}}>{c.l}</div><div style={{fontSize:18,fontWeight:800,marginBottom:1}}>{c.v}</div><div style={{fontSize:10,color:c.c,fontWeight:600}}>{c.s}</div></div>)}
+          </div>
+
+          {/* Policy Breakdown */}
+          <PolicyBreakdown breakdown={breakdown} totalPolicies={pols} totalRevenue={rev} color={agent.color} T={T}/>
+
+          {/* Revenue Rank */}
+          <div style={{background:T.bgCard,borderRadius:16,padding:18,border:`1px solid ${T.border}`,marginBottom:14,boxShadow:T.shadow}}>
+            <div style={{fontSize:14,fontWeight:700,marginBottom:14}}>🏅 Revenue Rank</div>
+            <div style={{display:"flex",gap:6,marginBottom:14}}>{revTiers.map((t,i)=>{const ok=rev>=t.target;return <div key={i} style={{flex:1,textAlign:"center",padding:"8px 3px",background:ok?`${agent.color}08`:T.bgSubtle,borderRadius:10,border:ok?`1px solid ${agent.color}33`:`1px solid ${T.borderLight}`,opacity:ok?1:0.4}}><div style={{fontSize:20}}>{t.icon}</div><div style={{fontSize:9,fontWeight:600,color:ok?agent.color:T.textMuted,marginTop:3}}>{t.name}</div><div style={{fontSize:8,color:T.textMuted}}>${t.target/1000}K</div></div>;})}</div>
+            {rTier.next&&<><div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:T.textSec,marginBottom:4}}><span>{rTier.current?.name||"Start"}</span><span>${(rTier.next.target-rev).toLocaleString()} to {rTier.next.name}</span></div><MiniBar value={rev} max={rTier.next.target} color={agent.color} height={8} T={T}/></>}
+          </div>
+
+          {/* ✅ HEAD TO HEAD — moved above Recent Wins */}
+          <div style={{background:T.bgCard,borderRadius:16,padding:18,border:`1px solid ${T.border}`,marginBottom:14,boxShadow:T.shadow}}>
+            <div style={{fontSize:14,fontWeight:700,marginBottom:14}}>📊 Head-to-Head</div>
+            <div style={{display:"grid",gridTemplateColumns:`repeat(${agents.length},1fr)`,gap:6}}>
+              {agents.map(a=>{const aXP=calcXP(a.sales,ctmData?ctmData[a.name]||ctmData[a.name.split(" ")[0]]||null:null),aB=getBadges(a.sales).filter(x=>x.earned).length,isL=sorted[0]?.id===a.id,aCTM=ctmData?ctmData[a.name]||ctmData[a.name.split(" ")[0]]||null:null;const aBreak=getPolicyBreakdown(a.sales);return(
+                <div key={a.id} style={{padding:"12px 8px",borderRadius:12,textAlign:"center",background:isL?`${a.color}06`:T.bgSubtle,border:isL?`2px solid ${a.color}33`:`1px solid ${T.borderLight}`,position:"relative"}}>
+                  {isL&&<div style={{position:"absolute",top:-8,left:"50%",transform:"translateX(-50%)",fontSize:12}}>👑</div>}
+                  <div style={{fontSize:22,marginBottom:3}}>{a.avatar}</div><div style={{fontSize:10,fontWeight:700,color:a.color,marginBottom:6}}>{a.name.split(" ")[0]}</div>
+                  {[{l:"Premium",v:`$${(a.totalRevenue/1000).toFixed(1)}K`},{l:"Total Pol.",v:a.totalPolicies},{l:"PL",v:aBreak.personal.count},{l:"Life",v:aBreak.life.count},{l:"Comm.",v:aBreak.commercial.count},{l:"Badges",v:`${aB}/16`},{l:"XP",v:aXP.toLocaleString()},...(aCTM?[{l:"📞 Calls",v:aCTM.answeredCalls||0}]:[])].map((r,j)=><div key={j}><div style={{fontSize:9,color:T.textMuted}}>{r.l}</div><div style={{fontSize:11,fontWeight:800,marginBottom:4,color:j===6?a.color:T.text}}>{r.v}</div></div>)}
+                </div>);})}
+            </div>
+          </div>
+
+          {/* Recent Wins */}
+          <div style={{background:T.bgCard,borderRadius:16,padding:18,border:`1px solid ${T.border}`,boxShadow:T.shadow}}>
+            <div style={{fontSize:14,fontWeight:700,marginBottom:12}}>⚡ Recent Wins</div>
+            {sales.length===0?<div style={{textAlign:"center",padding:"24px 0",color:T.textMuted}}><div style={{fontSize:32,marginBottom:6}}>🚀</div><div style={{fontSize:13,fontWeight:600}}>No policies in this period!</div></div>
+            :[...sales].reverse().slice(0,6).map((s,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 10px",borderRadius:10,marginBottom:5,background:T.bgSubtle,border:`1px solid ${T.borderLight}`}}>
+              <div style={{width:32,height:32,borderRadius:9,background:s.price>=5000?"#fef3c7":`${agent.color}10`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14}}>{s.price>=10000?"🐋":s.price>=5000?"💰":"✅"}</div>
+              <div style={{flex:1}}><div style={{fontSize:12,fontWeight:600}}>{(s.name||"").split(" - ")[0]}</div><div style={{fontSize:10,color:T.textMuted}}>{s.type} · {s.platform} · {s.boundDate}</div></div>
+              <div style={{textAlign:"right"}}>
+                <div style={{fontSize:13,fontWeight:700,color:s.price>=5000?"#b45309":"#059669"}}>{fmtPrice(s.price)}</div>
+                <div style={{fontSize:9,color:T.textMuted,background:categorizePolicy(s.type)==="life"?"#fdf2f8":categorizePolicy(s.type)==="commercial"?"#f0fdf4":"#eef2ff",padding:"1px 5px",borderRadius:4,marginTop:2}}>{categorizePolicy(s.type)==="life"?"❤️ Life":categorizePolicy(s.type)==="commercial"?"🏢 Comm":"🏠 PL"}</div>
+              </div>
+            </div>)}
+          </div>
+        </div>}
+
+        {/* ====== LEADERBOARD ====== */}
+        {tab==="leaderboard"&&<div style={{animation:"slideUp 0.4s"}}>
+          <RaceTrack agents={agents} field="totalRevenue" maxVal={maxTeamRev} icon="🏎️" title="🏎️ Premium Race" T={T}/>
+          <RaceTrack agents={agents} field="totalPolicies" maxVal={maxTeamPol} icon="🐴" title="🐴 Policy Derby" T={T}/>
+
+          {/* Revenue Rankings */}
+          <div style={{background:T.bgCard,borderRadius:16,padding:18,border:`1px solid ${T.border}`,marginBottom:14,boxShadow:T.shadow}}>
+            <div style={{fontSize:14,fontWeight:700,marginBottom:14}}>🏅 Revenue Rankings — {curPeriod?.name||"All Time"}</div>
+            {sorted.map((a,i)=>{const tier=getTier(revTiers,a.totalRevenue),aXP=calcXP(a.sales,ctmData?ctmData[a.name]||ctmData[a.name.split(" ")[0]]||null:null),aLvl=getLevel(aXP),isMe=a.id===selAgent,aBreak=getPolicyBreakdown(a.sales);return(
+              <div key={a.id} onClick={()=>setSelAgent(a.id)} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",borderRadius:14,marginBottom:8,background:isMe?`${a.color}06`:T.bgSubtle,border:isMe?`1px solid ${a.color}33`:`1px solid ${T.borderLight}`,cursor:"pointer"}}>
+                <div style={{width:34,height:34,borderRadius:10,background:i===0?"linear-gradient(135deg,#fbbf24,#f59e0b)":i===1?"linear-gradient(135deg,#d1d5db,#9ca3af)":i===2?"linear-gradient(135deg,#d97706,#b45309)":T.bgSubtle,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>{rankEmojis[i]||`${i+1}`}</div>
+                <div style={{width:40,height:40,borderRadius:12,background:`${a.color}10`,border:`2px solid ${a.color}33`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>{a.avatar}</div>
+                <div style={{flex:1}}>
+                  <div style={{display:"flex",alignItems:"center",gap:6}}><span style={{fontSize:13,fontWeight:700,color:isMe?a.color:T.text}}>{a.name}</span>{i===0&&a.totalRevenue>0&&<span style={{fontSize:9,background:"#f59e0b",color:"#fff",padding:"2px 8px",borderRadius:6,fontWeight:800}}>LEADER</span>}</div>
+                  <div style={{display:"flex",gap:8,fontSize:10,color:T.textMuted,marginTop:2}}>
+                    <span>Lvl {aLvl.current.level}</span>
+                    <span>🏠{aBreak.personal.count}</span>
+                    <span>❤️{aBreak.life.count}</span>
+                    <span>🏢{aBreak.commercial.count}</span>
+                    <span>{tier.current?`${tier.current.icon} ${tier.current.name}`:"—"}</span>
+                  </div>
+                  <div style={{marginTop:5}}><MiniBar value={a.totalRevenue} max={maxTeamRev} color={a.color} height={4} T={T}/></div>
+                </div>
+                <div style={{textAlign:"right"}}><div style={{fontSize:16,fontWeight:800,color:i===0?"#b45309":T.text}}>{fmtPrice(a.totalRevenue)}</div><div style={{fontSize:10,color:a.color,fontWeight:600}}>{aXP.toLocaleString()} XP</div></div>
+              </div>);})}
+          </div>
+
+          {/* Life Leader */}
+          <div style={{background:T.bgCard,borderRadius:16,padding:18,border:`1px solid ${T.border}`,marginBottom:14,boxShadow:T.shadow}}>
+            <div style={{fontSize:14,fontWeight:700,marginBottom:14}}>❤️ Life Sales Leader</div>
+            {lifeBoard.map((a,i)=><div key={a.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",borderRadius:10,marginBottom:5,background:i===0&&a.lifePrem>0?"#fdf2f8":T.bgSubtle,border:i===0&&a.lifePrem>0?"1px solid #fbcfe8":`1px solid ${T.borderLight}`}}><span style={{fontSize:16}}>{a.avatar}</span><div style={{flex:1}}><div style={{fontSize:12,fontWeight:700,color:a.color}}>{a.name.split(" ")[0]}</div><div style={{fontSize:10,color:T.textMuted}}>{a.lifeCount} policies</div></div><div style={{fontSize:14,fontWeight:800,color:a.lifePrem>0?"#db2777":T.textMuted}}>{fmtPrice(a.lifePrem)}</div>{i===0&&a.lifePrem>0&&<span style={{fontSize:8,background:"#db2777",color:"#fff",padding:"2px 6px",borderRadius:4,fontWeight:700}}>LEADER</span>}</div>)}
+          </div>
+
+          {/* CTM Call Leaderboard */}
+          <div style={{background:T.bgCard,borderRadius:16,padding:18,border:`1px solid ${T.border}`,boxShadow:T.shadow}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}>
+              <div style={{fontSize:14,fontWeight:700}}>📞 Call Leaderboard</div>
+              {!CTM_WEB_APP_URL&&<span style={{fontSize:9,background:"#fef3c7",color:"#b45309",padding:"2px 8px",borderRadius:6,fontWeight:700}}>SET CTM_WEB_APP_URL TO ACTIVATE</span>}
+              {CTM_WEB_APP_URL&&!ctmData&&<span style={{fontSize:9,background:"#fee2e2",color:"#dc2626",padding:"2px 8px",borderRadius:6,fontWeight:700}}>CONNECTING...</span>}
+              {ctmData&&<span style={{fontSize:9,background:"#dcfce7",color:"#059669",padding:"2px 8px",borderRadius:6,fontWeight:700}}>● LIVE</span>}
+            </div>
+            {!ctmData?
+              <div style={{textAlign:"center",padding:"24px 0",color:T.textMuted}}>
+                <div style={{fontSize:36,marginBottom:8}}>📞</div>
+                <div style={{fontSize:13,fontWeight:600,marginBottom:4}}>CTM Integration Pending</div>
+                <div style={{fontSize:11}}>Deploy the Apps Script Web App and set CTM_WEB_APP_URL at the top of this file.</div>
+              </div>
+            :Object.entries(ctmData).sort((a,b)=>(b[1].answeredCalls||0)-(a[1].answeredCalls||0)).map(([name,stats],i)=>{
+              const ag=agents.find(a=>a.name===name||a.name.startsWith(name))||{color:barColors[i],avatar:"👤"};
+              const medals=["🥇","🥈","🥉","4️⃣"];
+              return <div key={name} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:12,marginBottom:6,background:i===0?"#f0fdf4":T.bgSubtle,border:i===0?"1px solid #bbf7d0":`1px solid ${T.borderLight}`}}>
+                <span style={{fontSize:16}}>{medals[i]||"·"}</span>
+                <span style={{fontSize:18}}>{ag.avatar}</span>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:12,fontWeight:700,color:ag.color}}>{name}</div>
+                  <div style={{display:"flex",gap:10,fontSize:10,color:T.textMuted,marginTop:2}}>
+                    <span>✅ {stats.answeredCalls||0} answered</span>
+                    <span>📥 {stats.inboundLeads||0} inbound</span>
+                    <span>📊 {stats.totalCalls||0} total</span>
+                  </div>
+                  <div style={{marginTop:4}}><MiniBar value={stats.answeredCalls||0} max={Math.max(...Object.values(ctmData).map(s=>s.answeredCalls||0),1)} color={ag.color} height={4} T={T}/></div>
+                </div>
+                <div style={{textAlign:"right"}}>
+                  <div style={{fontSize:13,fontWeight:800,color:ag.color}}>+{((stats.answeredCalls||0)*15+(stats.inboundLeads||0)*25).toLocaleString()} XP</div>
+                  <div style={{fontSize:9,color:T.textMuted}}>from calls</div>
+                </div>
+              </div>;
+            })}
+            {ctmData&&<div style={{marginTop:10,padding:"8px 12px",borderRadius:10,background:T.bgSubtle,fontSize:10,color:T.textMuted}}>
+              📞 Answered call = <strong>+15 XP</strong> · 📥 Inbound lead = <strong>+25 XP</strong>
+            </div>}
+          </div>
+        </div>}
+
+        {/* ====== BADGES ====== */}
+        {tab==="achievements"&&<div style={{animation:"slideUp 0.4s"}}>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:16,padding:"12px 16px",background:T.bgCard,borderRadius:14,border:`1px solid ${T.border}`,boxShadow:T.shadow}}><div><span style={{fontSize:22,fontWeight:800}}>{earned}</span><span style={{fontSize:13,color:T.textMuted}}> / {badges.length}</span></div><div style={{fontSize:12,color:agent.color,fontWeight:600}}>{earned*250} XP</div></div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
+            {badges.map((b,i)=><div key={i} onMouseEnter={()=>setHoverBadge(i)} onMouseLeave={()=>setHoverBadge(null)} style={{padding:"14px 10px",borderRadius:14,textAlign:"center",background:b.earned?T.bgCard:T.bgSubtle,border:b.earned?`1px solid ${agent.color}33`:`1px solid ${T.borderLight}`,opacity:b.earned?1:0.4,transform:hoverBadge===i?"translateY(-3px) scale(1.02)":"none",transition:"all 0.25s",cursor:"default",position:"relative",boxShadow:b.earned?T.shadow:"none"}}>
+              <div style={{fontSize:26,marginBottom:3,filter:b.earned?"none":"grayscale(1)"}}>{b.icon}</div><div style={{fontSize:10,fontWeight:700,color:b.earned?T.text:T.textMuted,marginBottom:1}}>{b.name}</div><div style={{fontSize:8,color:T.textMuted}}>{b.desc}</div>
+              {b.earned&&<div style={{position:"absolute",top:4,right:4,fontSize:7,background:"#059669",color:"#fff",padding:"1px 4px",borderRadius:4,fontWeight:700}}>+250</div>}
+            </div>)}
+          </div>
+        </div>}
+
+        {/* ====== BREAKDOWN ====== */}
+        {tab==="breakdown"&&<div style={{display:"flex",flexDirection:"column",gap:14,animation:"slideUp 0.4s"}}>
+          {sales.length===0?<div style={{background:T.bgCard,borderRadius:16,padding:"36px 20px",border:`1px solid ${T.border}`,textAlign:"center"}}><div style={{fontSize:44,marginBottom:10}}>📭</div><div style={{fontSize:15,fontWeight:700,color:T.textMuted}}>No data in this period</div></div>
+          :<>{[{title:"📊 Premium by Type",data:typeBreak,fmt:v=>fmtPrice(v)},{title:"🌐 Policies by Platform",data:platBreak,fmt:v=>`${v}`},...(Object.keys(leadBreak).length>0?[{title:"📍 By Lead Source",data:leadBreak,fmt:v=>`${v}`}]:[])].map((sec,si)=>
+            <div key={si} style={{background:T.bgCard,borderRadius:16,padding:18,border:`1px solid ${T.border}`,boxShadow:T.shadow}}><div style={{fontSize:14,fontWeight:700,marginBottom:14}}>{sec.title}</div>
+              {Object.entries(sec.data).sort(([,a],[,b])=>b-a).map(([k,v],i)=><div key={i} style={{marginBottom:10}}><div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}><span style={{color:T.textSec,fontWeight:600}}>{k}</span><span style={{color:barColors[i%barColors.length],fontWeight:700}}>{sec.fmt(v)}</span></div><MiniBar value={v} max={Math.max(...Object.values(sec.data))} color={barColors[i%barColors.length]} T={T}/></div>)}</div>)}
+            <div style={{background:T.bgCard,borderRadius:16,padding:18,border:`1px solid ${T.border}`,boxShadow:T.shadow}}>
+              <div style={{fontSize:14,fontWeight:700,marginBottom:12}}>🏆 Top Deals</div>
+              {[...sales].sort((a,b)=>b.price-a.price).slice(0,5).map((s,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 10px",borderRadius:10,marginBottom:5,background:i===0?"#fffbeb":T.bgSubtle,border:i===0?"1px solid #fde68a":`1px solid ${T.borderLight}`}}>
+                <div style={{width:26,height:26,borderRadius:8,background:i===0?"#f59e0b":i===1?"#9ca3af":i===2?"#b45309":T.bgSubtle,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:800,color:i<3?"#fff":T.textMuted}}>{i+1}</div>
+                <div style={{flex:1}}><div style={{fontSize:12,fontWeight:600}}>{(s.name||"").split(" - ")[0]}</div><div style={{fontSize:9,color:T.textMuted}}>{s.type} · {categorizePolicy(s.type)==="life"?"❤️":categorizePolicy(s.type)==="commercial"?"🏢":"🏠"}</div></div>
+                <div style={{fontSize:14,fontWeight:800,color:i===0?"#b45309":T.text}}>{fmtPrice(s.price)}</div></div>)}
+            </div></>}
+        </div>}
+
+        {/* ====== QUESTS ====== */}
+        {tab==="quests"&&<div style={{animation:"slideUp 0.4s"}}>
+          <div style={{padding:"14px 16px",marginBottom:14,background:`${agent.color}06`,borderRadius:14,border:`1px solid ${agent.color}22`}}><div style={{fontSize:14,fontWeight:700,marginBottom:3}}>⚔️ Quest Board — {agent.name.split(" ")[0]}</div><div style={{fontSize:11,color:T.textSec}}>{quests.filter(q=>q.progress>=q.target).length}/{quests.length} completed</div></div>
+          {questCats.map(cat=>{const cq=quests.filter(q=>q.cat===cat);return <div key={cat} style={{marginBottom:14}}>
+            <div style={{fontSize:12,fontWeight:700,color:T.textSec,marginBottom:6,padding:"0 3px"}}>{cat}</div>
+            {cq.map((q,i)=>{const pct=q.target>0?Math.min((q.progress/q.target)*100,100):0,done=pct>=100;return(
+              <div key={i} style={{padding:"12px 14px",borderRadius:12,marginBottom:6,background:done?"#f0fdf4":T.bgCard,border:done?"1px solid #bbf7d0":`1px solid ${T.border}`,boxShadow:T.shadow}}>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}><div style={{width:32,height:32,borderRadius:9,background:done?"#dcfce7":`${agent.color}08`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>{done?"✅":q.icon}</div>
+                  <div style={{flex:1}}><div style={{fontSize:12,fontWeight:700,color:done?"#059669":T.text}}>{q.name}</div><div style={{fontSize:9,color:T.textMuted}}>Reward: {q.reward}</div></div>
+                  <div style={{fontSize:11,fontWeight:800,color:done?"#059669":agent.color}}>{pct.toFixed(0)}%</div></div>
+                <MiniBar value={q.progress} max={q.target} color={done?"#059669":agent.color} height={4} T={T}/>
+                <div style={{display:"flex",justifyContent:"space-between",marginTop:2,fontSize:9,color:T.textMuted}}><span>{q.progress>100?`$${q.progress.toLocaleString()}`:q.progress}/{q.target>100?`$${q.target.toLocaleString()}`:q.target}</span>{done&&<span style={{color:"#059669",fontWeight:700}}>DONE!</span>}</div>
+              </div>);})}
+          </div>;})}
+        </div>}
+
+        {/* ====== REVIEWS ====== */}
+        {tab==="reviews"&&<div style={{animation:"slideUp 0.4s"}}>
+          <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(agents.length,4)},1fr)`,gap:10,marginBottom:16}}>
+            {agents.map(a=>{const revs=a.sales.filter(s=>s.review&&s.review.trim()),aBreak=getPolicyBreakdown(a.sales);return(
+              <div key={a.id} style={{background:T.bgCard,borderRadius:14,padding:16,border:`1px solid ${T.border}`,boxShadow:T.shadow,textAlign:"center"}}>
+                <div style={{fontSize:26,marginBottom:4}}>{a.avatar}</div>
+                <div style={{fontSize:12,fontWeight:700,color:a.color,marginBottom:6}}>{a.name.split(" ")[0]}</div>
+                <div style={{fontSize:16,fontWeight:800,color:"#059669",marginBottom:1}}>{fmtShort(a.totalRevenue)}</div>
+                <div style={{fontSize:10,color:T.textMuted,marginBottom:6}}>{a.totalPolicies} policies</div>
+                <div style={{display:"flex",justifyContent:"center",gap:6,fontSize:10,color:T.textMuted,marginBottom:8}}>
+                  <span>🏠{aBreak.personal.count}</span><span>❤️{aBreak.life.count}</span><span>🏢{aBreak.commercial.count}</span>
+                </div>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:4}}>
+                  <span style={{fontSize:16}}>⭐</span><span style={{fontSize:14,fontWeight:800}}>{revs.length}</span><span style={{fontSize:10,color:T.textMuted}}>reviews</span>
+                </div>
+              </div>);})}
+          </div>
+          <div style={{background:T.bgCard,borderRadius:16,padding:18,border:`1px solid ${T.border}`,boxShadow:T.shadow}}>
+            <div style={{fontSize:14,fontWeight:700,marginBottom:14}}>⭐ Customer Reviews ({allReviews.length})</div>
+            {allReviews.length===0?<div style={{textAlign:"center",padding:"30px 0",color:T.textMuted}}><div style={{fontSize:36,marginBottom:8}}>💬</div><div style={{fontSize:13,fontWeight:600}}>No reviews yet. Add a "Review" column to your spreadsheet!</div></div>
+            :allReviews.map((r,i)=><div key={i} style={{padding:"12px 14px",borderRadius:12,marginBottom:8,background:T.bgSubtle,border:`1px solid ${T.borderLight}`}}>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+                <span style={{fontSize:18}}>{r.agentAvatar}</span>
+                <div style={{flex:1}}><div style={{fontSize:12,fontWeight:700,color:r.agentColor}}>{r.agentName}</div><div style={{fontSize:10,color:T.textMuted}}>{r.name} · {r.type} · {fmtPrice(r.price)} · {r.boundDate}</div></div>
+                <span style={{fontSize:14}}>⭐</span>
+              </div>
+              <div style={{fontSize:12,color:T.textSec,fontStyle:"italic",lineHeight:1.5,padding:"4px 0 0 28px"}}>"{r.review}"</div>
+            </div>)}
+          </div>
+        </div>}
+
+        {/* FOOTER */}
+        <div style={{marginTop:20,padding:"12px 16px",background:T.bgCard,borderRadius:12,border:`1px solid ${T.border}`,display:"flex",justifyContent:"space-between",fontSize:10,color:T.textMuted,flexWrap:"wrap",gap:6}}>
+          <span>📡 {agents.length} Producers · {fmtPrice(teamRev)} / {teamPols} pol</span>
+          <span>{curPeriod?.name||"All Time"} · {agent.name} · #{rankOf} · {earned}/{badges.length} Badges</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
