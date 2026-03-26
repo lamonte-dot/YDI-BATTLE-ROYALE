@@ -6,6 +6,7 @@
 <title>Young Douglas Insurance Services — Sales Dashboard</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow-x:hidden}
 body{font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,sans-serif}
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.3)}}
@@ -16,6 +17,33 @@ body{font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,sans-serif}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
 input,select,textarea{font-family:inherit}
+
+/* ===== RESPONSIVE ===== */
+@media(max-width:600px){
+  .ydi-header{flex-wrap:wrap;gap:8px !important}
+  .ydi-header-btns{flex-wrap:wrap;justify-content:flex-end}
+  .ydi-tabs{gap:2px !important}
+  .ydi-tabs button{font-size:9px !important;padding:7px 2px !important}
+  .ydi-agent-tabs button{min-width:70px !important;padding:5px 6px !important}
+  .ydi-stat-grid{grid-template-columns:repeat(2,1fr) !important}
+  .ydi-h2h-grid{grid-template-columns:repeat(2,1fr) !important}
+  .ydi-badge-grid{grid-template-columns:repeat(3,1fr) !important}
+  .ydi-review-grid{grid-template-columns:repeat(2,1fr) !important}
+  .ydi-goal-tiers{gap:3px !important}
+  .ydi-main{padding:10px !important}
+  .ydi-container{padding:0 !important}
+}
+@media(min-width:601px) and (max-width:900px){
+  .ydi-stat-grid{grid-template-columns:repeat(2,1fr) !important}
+  .ydi-h2h-grid{grid-template-columns:repeat(2,1fr) !important}
+}
+@media(min-width:1200px){
+  .ydi-container{max-width:100% !important;padding:0 24px !important}
+}
+@media(min-width:1600px){
+  .ydi-container{max-width:1400px !important}
+  .ydi-main{padding:24px !important}
+}
 </style>
 <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -52,7 +80,19 @@ const DEFAULT_AGENTS=[
 ];
 const MASTER_SHEET_ID="1lcpyQctMAIZ1Q-cDFIpWNelf7R_Y61PJCfCXyVFhh4E";
 const TEAM_GOALS=[{name:"Bronze",target:75000,icon:"🥉",color:"#b45309"},{name:"Silver",target:100000,icon:"🥈",color:"#6b7280"},{name:"Gold",target:125000,icon:"🥇",color:"#ca8a04"},{name:"Platinum",target:150000,icon:"💎",color:"#7c3aed"},{name:"Diamond",target:200000,icon:"👑",color:"#0891b2"}];
-const DEFAULT_PERIODS=[{name:"Q1 2026",start:"2026-01-01",end:"2026-03-31"},{name:"Q2 2026",start:"2026-04-01",end:"2026-06-30"},{name:"Q3 2026",start:"2026-07-01",end:"2026-09-30"},{name:"Q4 2026",start:"2026-10-01",end:"2026-12-31"}];
+const DEFAULT_PERIODS=[
+  {name:"2/18-3/18",        start:"2026-02-18",end:"2026-03-18"},
+  {name:"3/19-4/17/2026",   start:"2026-03-19",end:"2026-04-17"},
+  {name:"4/18-5/19/2026",   start:"2026-04-18",end:"2026-05-19"},
+  {name:"5/20-6/18/2026",   start:"2026-05-20",end:"2026-06-18"},
+  {name:"6/19-7/17/2026",   start:"2026-06-19",end:"2026-07-17"},
+  {name:"7/18-8/19/2026",   start:"2026-07-18",end:"2026-08-19"},
+  {name:"8/20-9/18/2026",   start:"2026-08-20",end:"2026-09-18"},
+  {name:"9/19-10/19/2026",  start:"2026-09-19",end:"2026-10-19"},
+  {name:"10/20-11/17/2026", start:"2026-10-20",end:"2026-11-17"},
+  {name:"11/18-12/17/2026", start:"2026-11-18",end:"2026-12-17"},
+  {name:"12/18-1/17/2027",  start:"2026-12-18",end:"2027-01-17"},
+];
 
 const MOTIVATIONAL_QUOTES=[
   // Insurance & Agency
@@ -820,7 +860,7 @@ function App(){
   const questCats=[...new Set(quests.map(q=>q.cat))];
 
   return(
-    <div style={{minHeight:"100vh",background:T.bg,color:T.text,fontFamily:"'Segoe UI',-apple-system,sans-serif",padding:20,position:"relative"}}>
+    <div className="ydi-main" style={{minHeight:"100vh",background:T.bg,color:T.text,fontFamily:"'Segoe UI',-apple-system,sans-serif",padding:16,position:"relative"}}>
       <canvas ref={canvasRef} style={{position:"fixed",top:0,left:0,width:"100%",height:"100%",pointerEvents:"none",zIndex:9998}}/>
 
       {/* Toast */}
@@ -836,7 +876,7 @@ function App(){
       {showAvatar&&<AvatarPicker current={agent?.avatar} onSelect={updateMyAvatar} onClose={()=>setShowAvatar(false)} T={T}/>}
       {showMsgAdmin&&<MessageBoardAdmin messages={messages} onSave={saveMessages} onClose={()=>setShowMsgAdmin(false)} T={T}/>}
 
-      <div style={{maxWidth:920,margin:"0 auto"}}>
+      <div className="ydi-container" style={{maxWidth:1200,margin:"0 auto"}}>
         {/* HEADER */}
         <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:10}}>
           <img src={LOGO_B64} alt="YDI" style={{width:56,height:56,borderRadius:14,objectFit:"contain",background:dark?"#334155":"#f1f5f9",padding:4}}/>
@@ -844,7 +884,7 @@ function App(){
             <div style={{fontSize:22,fontWeight:900,letterSpacing:-0.5}}>Young Douglas Insurance Services</div>
             <div style={{fontSize:11,color:T.textMuted,letterSpacing:2,textTransform:"uppercase",fontWeight:600}}>Live Sales Dashboard</div>
           </div>
-          <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap",justifyContent:"flex-end"}}>
+          <div className="ydi-header-btns" style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap",justifyContent:"flex-end"}}>
             <button onClick={()=>setShowGuide(true)} style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${T.border}`,background:T.bgCard,cursor:"pointer",fontSize:12,color:T.textSec}}>📖</button>
             <button onClick={toggleDark} style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${T.border}`,background:T.bgCard,cursor:"pointer",fontSize:14}}>{dark?"☀️":"🌙"}</button>
             <button onClick={handleBoardClick} style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${T.border}`,background:T.bgCard,cursor:"pointer",fontSize:11,color:T.textSec,fontWeight:600}}>📋 Board</button>
@@ -879,7 +919,7 @@ function App(){
         {lastRefresh&&<div style={{display:"flex",alignItems:"center",gap:6,marginBottom:10,fontSize:11,color:"#059669"}}><span style={{display:"inline-block",width:6,height:6,borderRadius:"50%",background:"#059669",animation:"pulse 2s infinite"}}/>LIVE — {lastRefresh.toLocaleTimeString()} · Auto 5 min{CTM_WEB_APP_URL&&ctmData?<span style={{marginLeft:8,color:"#6366f1"}}>· 📞 CTM Live</span>:null}</div>}
 
         {/* AGENT TABS */}
-        <div style={{display:"flex",gap:5,marginBottom:12,flexWrap:"wrap"}}>
+        <div className="ydi-agent-tabs" style={{display:"flex",gap:5,marginBottom:12,flexWrap:"wrap"}}>
           {agents.map(a=>{const aR=sorted.findIndex(x=>x.id===a.id)+1,isL=aR===1,isMe=a.id===selAgent;return(
             <button key={a.id} onClick={()=>setSelAgent(a.id)} style={{display:"flex",alignItems:"center",gap:6,padding:"7px 12px",borderRadius:12,border:`1px solid ${isMe?a.color+"44":T.border}`,background:isMe?`${a.color}08`:T.bgCard,cursor:"pointer",color:isMe?T.text:T.textSec,flex:1,minWidth:100,position:"relative"}}>
               <span onClick={e=>{e.stopPropagation();setSelAgent(a.id);setShowAvatar(true);}} title="Change avatar" style={{fontSize:16,position:"relative",cursor:"pointer",display:"inline-block"}} >
@@ -894,7 +934,7 @@ function App(){
         {lvl.next&&<div style={{marginBottom:14}}><div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:T.textMuted,marginBottom:3}}><span>Lvl {lvl.current.level}</span><span>{Math.max(0,xp-lvl.current.xp)}/{lvl.next.xp-lvl.current.xp} XP</span></div><MiniBar value={Math.max(0,xp-lvl.current.xp)} max={lvl.next.xp-lvl.current.xp} color={agent.color} height={5} T={T}/></div>}
 
         {/* MAIN TABS */}
-        <div style={{display:"flex",gap:2,marginBottom:20,background:T.bgSubtle,borderRadius:12,padding:3}}>
+        <div className="ydi-tabs" style={{display:"flex",gap:2,marginBottom:20,background:T.bgSubtle,borderRadius:12,padding:3}}>
           {tabList.map(t=><button key={t.id} onClick={()=>setTab(t.id)} style={{flex:1,padding:"9px 4px",borderRadius:10,border:"none",background:tab===t.id?T.bgCard:"transparent",color:tab===t.id?agent.color:T.textMuted,cursor:"pointer",fontSize:11,fontWeight:600,boxShadow:tab===t.id?T.shadow:"none",whiteSpace:"nowrap"}}>{t.icon} {t.label}</button>)}
         </div>
 
@@ -914,7 +954,7 @@ function App(){
           <MessageBoard messages={messages} T={T}/>
 
           {/* Stats */}
-          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:14}}>
+          <div className="ydi-stat-grid" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:14}}>
             {[{l:"Premium",v:fmtPrice(rev),s:rTier.current?`${rTier.current.icon} ${rTier.current.name}`:"🏁 Unranked",c:"#059669"},{l:"Policies",v:pols,s:pTier.current?`${pTier.current.icon} ${pTier.current.name}`:"🏁 Start",c:agent.color},{l:"Streak",v:`${streak.current}wk`,s:`Best: ${streak.best}wk`,c:"#d97706"},{l:"Avg Bind",v:avgBind?`${avgBind}d`:"—",s:avgBind?"Lead→Bound":"",c:"#7c3aed"}].map((c,i)=><div key={i} style={{background:T.bgCard,borderRadius:14,padding:"14px 12px",border:`1px solid ${T.border}`,position:"relative",overflow:"hidden",boxShadow:T.shadow}}><div style={{position:"absolute",top:0,left:0,right:0,height:3,background:c.c}}/><div style={{fontSize:9,color:T.textMuted,textTransform:"uppercase",letterSpacing:1.5,marginBottom:3}}>{c.l}</div><div style={{fontSize:18,fontWeight:800,marginBottom:1}}>{c.v}</div><div style={{fontSize:10,color:c.c,fontWeight:600}}>{c.s}</div></div>)}
           </div>
 
@@ -931,7 +971,7 @@ function App(){
           {/* ✅ HEAD TO HEAD — moved above Recent Wins */}
           <div style={{background:T.bgCard,borderRadius:16,padding:18,border:`1px solid ${T.border}`,marginBottom:14,boxShadow:T.shadow}}>
             <div style={{fontSize:14,fontWeight:700,marginBottom:14}}>📊 Head-to-Head</div>
-            <div style={{display:"grid",gridTemplateColumns:`repeat(${agents.length},1fr)`,gap:6}}>
+            <div className="ydi-h2h-grid" style={{display:"grid",gridTemplateColumns:`repeat(${agents.length},1fr)`,gap:6}}>
               {agents.map(a=>{const aXP=calcXP(a.sales,ctmData?ctmData[a.name]||ctmData[a.name.split(" ")[0]]||null:null),aB=getBadges(a.sales).filter(x=>x.earned).length,isL=sorted[0]?.id===a.id,aCTM=ctmData?ctmData[a.name]||ctmData[a.name.split(" ")[0]]||null:null;const aBreak=getPolicyBreakdown(a.sales);return(
                 <div key={a.id} style={{padding:"12px 8px",borderRadius:12,textAlign:"center",background:isL?`${a.color}06`:T.bgSubtle,border:isL?`2px solid ${a.color}33`:`1px solid ${T.borderLight}`,position:"relative"}}>
                   {isL&&<div style={{position:"absolute",top:-8,left:"50%",transform:"translateX(-50%)",fontSize:12}}>👑</div>}
@@ -1033,7 +1073,7 @@ function App(){
         {/* ====== BADGES ====== */}
         {tab==="achievements"&&<div style={{animation:"slideUp 0.4s"}}>
           <div style={{display:"flex",justifyContent:"space-between",marginBottom:16,padding:"12px 16px",background:T.bgCard,borderRadius:14,border:`1px solid ${T.border}`,boxShadow:T.shadow}}><div><span style={{fontSize:22,fontWeight:800}}>{earned}</span><span style={{fontSize:13,color:T.textMuted}}> / {badges.length}</span></div><div style={{fontSize:12,color:agent.color,fontWeight:600}}>{earned*250} XP</div></div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
+          <div className="ydi-badge-grid" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
             {badges.map((b,i)=><div key={i} onMouseEnter={()=>setHoverBadge(i)} onMouseLeave={()=>setHoverBadge(null)} style={{padding:"14px 10px",borderRadius:14,textAlign:"center",background:b.earned?T.bgCard:T.bgSubtle,border:b.earned?`1px solid ${agent.color}33`:`1px solid ${T.borderLight}`,opacity:b.earned?1:0.4,transform:hoverBadge===i?"translateY(-3px) scale(1.02)":"none",transition:"all 0.25s",cursor:"default",position:"relative",boxShadow:b.earned?T.shadow:"none"}}>
               <div style={{fontSize:26,marginBottom:3,filter:b.earned?"none":"grayscale(1)"}}>{b.icon}</div><div style={{fontSize:10,fontWeight:700,color:b.earned?T.text:T.textMuted,marginBottom:1}}>{b.name}</div><div style={{fontSize:8,color:T.textMuted}}>{b.desc}</div>
               {b.earned&&<div style={{position:"absolute",top:4,right:4,fontSize:7,background:"#059669",color:"#fff",padding:"1px 4px",borderRadius:4,fontWeight:700}}>+250</div>}
@@ -1074,7 +1114,7 @@ function App(){
 
         {/* ====== REVIEWS ====== */}
         {tab==="reviews"&&<div style={{animation:"slideUp 0.4s"}}>
-          <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(agents.length,4)},1fr)`,gap:10,marginBottom:16}}>
+          <div className="ydi-review-grid" style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(agents.length,4)},1fr)`,gap:10,marginBottom:16}}>
             {agents.map(a=>{const revs=a.sales.filter(s=>s.review&&s.review.trim()),aBreak=getPolicyBreakdown(a.sales);return(
               <div key={a.id} style={{background:T.bgCard,borderRadius:14,padding:16,border:`1px solid ${T.border}`,boxShadow:T.shadow,textAlign:"center"}}>
                 <div style={{fontSize:26,marginBottom:4}}>{a.avatar}</div>
