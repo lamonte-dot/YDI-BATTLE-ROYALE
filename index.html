@@ -101,12 +101,13 @@ const SOUND_OPTIONS=[
   ...CUSTOM_SOUNDS,
 ];
 const DEFAULT_AGENTS=[
-  {id:"joey",name:"Joey",avatar:"👨‍💼",color:"#6366f1",gid:"1609724004",sheetId:"1lcpyQctMAIZ1Q-cDFIpWNelf7R_Y61PJCfCXyVFhh4E",sound:"chime"},
-  {id:"melissa",name:"Melissa Douglas",avatar:"👩‍💼",color:"#db2777",gid:"0",sheetId:"1A0zojTTbqWpohNSsa9lmA3HoOSCcC8a7yxl-VLvjCLI",sound:"fanfare"},
-  {id:"stephanie",name:"Stephanie Jones",avatar:"👩‍💻",color:"#0891b2",gid:"0",sheetId:"1wGf4D137wbeI80R67NgusuAA5rGMa2xZJjqmkmAxdfA",sound:"victory"},
-  {id:"kim",name:"Kim Reese",avatar:"👩‍🔧",color:"#d97706",gid:"0",sheetId:"1qFrMldIUyixXDAjxHDUq8ZocoVaztWRBF6yvo2w6G3Y",sound:"cash"},
+  {id:"joey",name:"Joey",avatar:"👨‍💼",color:"#6366f1",gid:"1609724004",sheetId:"1lcpyQctMAIZ1Q-cDFIpWNelf7R_Y61PJCfCXyVFhh4E",sound:"chime",goals:{premium:25000,policies:20,life:3,commercial:2,personalLines:15}},
+  {id:"melissa",name:"Melissa Douglas",avatar:"👩‍💼",color:"#db2777",gid:"0",sheetId:"1A0zojTTbqWpohNSsa9lmA3HoOSCcC8a7yxl-VLvjCLI",sound:"fanfare",goals:{premium:25000,policies:20,life:3,commercial:2,personalLines:15}},
+  {id:"stephanie",name:"Stephanie Jones",avatar:"👩‍💻",color:"#0891b2",gid:"0",sheetId:"1wGf4D137wbeI80R67NgusuAA5rGMa2xZJjqmkmAxdfA",sound:"victory",goals:{premium:25000,policies:20,life:3,commercial:2,personalLines:15}},
+  {id:"kim",name:"Kim Reese",avatar:"👩‍🔧",color:"#d97706",gid:"0",sheetId:"1qFrMldIUyixXDAjxHDUq8ZocoVaztWRBF6yvo2w6G3Y",sound:"cash",goals:{premium:25000,policies:20,life:3,commercial:2,personalLines:15}},
 ];
 const MASTER_SHEET_ID="1lcpyQctMAIZ1Q-cDFIpWNelf7R_Y61PJCfCXyVFhh4E";
+const DEFAULT_TEAM_GOALS={premium:100000,policies:80,life:12,commercial:8,personalLines:60};
 const TEAM_GOALS=[{name:"Bronze",target:75000,icon:"🥉",color:"#b45309"},{name:"Silver",target:100000,icon:"🥈",color:"#6b7280"},{name:"Gold",target:125000,icon:"🥇",color:"#ca8a04"},{name:"Platinum",target:150000,icon:"💎",color:"#7c3aed"},{name:"Diamond",target:200000,icon:"👑",color:"#0891b2"}];
 const DEFAULT_PERIODS=[
   {name:"2/18-3/18",        start:"2026-02-18",end:"2026-03-18"},
@@ -693,6 +694,17 @@ function AdminPanel({agentsCfg,onSave,onClose,T}){
         <select value={a.sound||"chime"} onChange={e=>upd(i,"sound",e.target.value)} style={{padding:"6px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:12,background:T.bgCard,color:T.text}}>{SOUND_OPTIONS.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select>
         <button onClick={()=>playSound(a.sound)} style={{padding:"6px 8px",borderRadius:8,border:`1px solid ${T.border}`,background:T.bgCard,cursor:"pointer",fontSize:12}}>▶️</button>
       </div>
+      <div style={{marginTop:8,padding:"10px 12px",background:T.bgSubtle,borderRadius:10,border:`1px solid ${T.borderLight}`}}>
+        <div style={{fontSize:10,fontWeight:700,color:T.textSec,marginBottom:8}}>🎯 PRODUCER GOALS (Admin Only)</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:6}}>
+          {[{f:"premium",label:"Premium $",ph:"25000"},{f:"policies",label:"Policies",ph:"20"},{f:"personalLines",label:"PL Policies",ph:"15"},{f:"life",label:"Life Pol.",ph:"3"},{f:"commercial",label:"Comm. Pol.",ph:"2"}].map(({f,label,ph})=>
+            <div key={f}>
+              <div style={{fontSize:9,color:T.textMuted,marginBottom:2}}>{label}</div>
+              <input type="number" value={(a.goals||{})[f]||""} onChange={e=>{const g={...(a.goals||{}),[f]:Number(e.target.value)};upd(i,"goals",g);}} placeholder={ph} style={{width:"100%",padding:"5px 7px",borderRadius:7,border:`1px solid ${T.border}`,fontSize:11,background:T.bgCard,color:T.text}}/>
+            </div>
+          )}
+        </div>
+      </div>
     </div>)}
     <button onClick={add} style={{width:"100%",padding:12,borderRadius:12,border:`2px dashed #059669`,background:"#f0fdf4",color:"#059669",fontSize:13,fontWeight:700,cursor:"pointer",marginBottom:16}}>+ Add New Producer</button>
     <div style={{display:"flex",gap:10}}>
@@ -890,6 +902,8 @@ function App(){
   const[showAvatar,setShowAvatar]=useState(false);
   const[showSound,setShowSound]=useState(false);
   const[showMsgAdmin,setShowMsgAdmin]=useState(false);
+  const[teamGoalsCfg,setTeamGoalsCfg]=useState(()=>loadLS("yd_team_goals",DEFAULT_TEAM_GOALS));
+  const[showTeamGoals,setShowTeamGoals]=useState(false);
   const[messages,setMessages]=useState(()=>loadLS("yd_messages",[]));
   const[ctmData,setCtmData]=useState(null);
   const prevCount=useRef(null),prevAgents=useRef([]);
@@ -932,6 +946,7 @@ function App(){
   // Auto-update period every hour if not overridden
   useEffect(()=>{if(!periodOverridden){const auto=getCurPeriodIdx(periods);setSelPeriodIdx(auto);}const i=setInterval(()=>{if(!periodOverridden)setSelPeriodIdx(getCurPeriodIdx(periods));},60*60*1000);return()=>clearInterval(i);},[periods,periodOverridden]);
   const saveMessages=useCallback(msgs=>{setMessages(msgs);saveLS("yd_messages",msgs);},[]);
+  const saveTeamGoals=useCallback(g=>{setTeamGoalsCfg(g);saveLS("yd_team_goals",g);},[]);
   const toggleDark=()=>{setDark(d=>{saveLS("yd_dark",!d);return!d;});};
   const updateMyAvatar=(av)=>{const cfg=agentsCfg.map(a=>a.id===selAgent?{...a,avatar:av}:a);saveAgentsCfg(cfg);};
   const updateMySound=(snd)=>{const cfg=agentsCfg.map(a=>a.id===selAgent?{...a,sound:snd}:a);saveAgentsCfg(cfg);};
@@ -967,7 +982,7 @@ function App(){
   const teamGoalTier=getTier(TEAM_GOALS,teamRev);
   const lifeBoard=agents.map(a=>{const ls=a.sales.filter(s=>s.type.toLowerCase().includes("life"));return{...a,lifeCount:ls.length,lifePrem:ls.reduce((s,p)=>s+p.price,0)};}).sort((a,b)=>b.lifePrem-a.lifePrem);
 
-  const tabList=[{id:"overview",label:"Dashboard",icon:"📊"},{id:"leaderboard",label:"Leaderboard",icon:"🏅"},{id:"achievements",label:"Badges",icon:"🏆"},{id:"missions",label:"Missions",icon:"🎯"},{id:"breakdown",label:"Breakdown",icon:"📈"},{id:"quests",label:"Quests",icon:"⚔️"},{id:"reviews",label:"Reviews",icon:"⭐"}];
+  const tabList=[{id:"overview",label:"Dashboard",icon:"📊"},{id:"goals",label:"Goals",icon:"🎯"},{id:"leaderboard",label:"Leaderboard",icon:"🏅"},{id:"achievements",label:"Badges",icon:"🏆"},{id:"missions",label:"Missions",icon:"⚔️"},{id:"breakdown",label:"Breakdown",icon:"📈"},{id:"quests",label:"Quests",icon:"🗺️"},{id:"reviews",label:"Reviews",icon:"⭐"}];
 
   const quests=[
     {cat:"💰 Revenue",name:"$25K",progress:rev,target:25000,reward:"500 XP",icon:"💵"},{cat:"💰 Revenue",name:"$50K",progress:rev,target:50000,reward:"750 XP",icon:"🏅"},{cat:"💰 Revenue",name:"$75K",progress:rev,target:75000,reward:"1K XP",icon:"🔥"},{cat:"💰 Revenue",name:"$100K",progress:rev,target:100000,reward:"2K XP",icon:"👑"},
@@ -997,6 +1012,21 @@ function App(){
       {showSound&&<SoundPicker current={agent?.sound} onSelect={updateMySound} onClose={()=>setShowSound(false)} T={T}/>}
       {showMsgAdmin&&<MessageBoardAdmin messages={messages} onSave={saveMessages} onClose={()=>setShowMsgAdmin(false)} T={T}/>}
 
+      {showTeamGoals&&<Modal onClose={()=>setShowTeamGoals(false)} T={T}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}><h2 style={{fontSize:18,fontWeight:800}}>🎯 Team Goals</h2><button onClick={()=>setShowTeamGoals(false)} style={{background:"none",border:"none",fontSize:24,cursor:"pointer",color:T.textMuted}}>×</button></div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8,marginBottom:16}}>
+          {[{f:"premium",label:"Team Premium $"},{f:"policies",label:"Total Policies"},{f:"personalLines",label:"Personal Lines"},{f:"life",label:"Life Policies"},{f:"commercial",label:"Commercial"}].map(({f,label})=>
+            <div key={f}>
+              <div style={{fontSize:10,color:T.textMuted,marginBottom:3}}>{label}</div>
+              <input type="number" value={teamGoalsCfg[f]||""} onChange={e=>saveTeamGoals({...teamGoalsCfg,[f]:Number(e.target.value)})} style={{width:"100%",padding:"7px 10px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:13,background:T.bgSubtle,color:T.text,fontWeight:700}}/>
+            </div>
+          )}
+        </div>
+        <div style={{fontSize:11,color:T.textMuted,padding:"10px 14px",background:T.bgSubtle,borderRadius:10,marginBottom:14}}>Individual producer goals are set in 🔐 Admin → each producer card.</div>
+        <button onClick={()=>setShowTeamGoals(false)} style={{width:"100%",padding:12,borderRadius:12,border:"none",background:"#059669",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>✅ Done</button>
+      </Modal>}
+
+
       <div className="ydi-container" style={{maxWidth:1200,margin:"0 auto"}}>
         {/* HEADER */}
         <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:10}}>
@@ -1008,6 +1038,7 @@ function App(){
           <div className="ydi-header-btns" style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap",justifyContent:"flex-end"}}>
             <button onClick={()=>setShowGuide(true)} style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${T.border}`,background:T.bgCard,cursor:"pointer",fontSize:12,color:T.textSec}}>📖</button>
             <button onClick={toggleDark} style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${T.border}`,background:T.bgCard,cursor:"pointer",fontSize:14}}>{dark?"☀️":"🌙"}</button>
+            <button onClick={()=>{if(adminUnlocked){setShowTeamGoals(true);}else{pendingAction.current="teamgoals";setShowPasswordPrompt(true);}}} style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${T.border}`,background:T.bgCard,cursor:"pointer",fontSize:11,color:"#059669",fontWeight:700}}>🎯 Goals</button>
             <button onClick={handleBoardClick} style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${T.border}`,background:T.bgCard,cursor:"pointer",fontSize:11,color:T.textSec,fontWeight:600}}>📋 Board</button>
             <button onClick={handleAdminClick} style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${T.border}`,background:T.bgCard,cursor:"pointer",fontSize:12,color:T.textSec}}>🔐 Admin</button>
             <button onClick={handleRefresh} disabled={refreshing} style={{padding:"6px 12px",borderRadius:8,border:`1px solid ${T.border}`,background:refreshing?T.bgSubtle:T.bgCard,color:refreshing?T.textMuted:T.textSec,fontSize:11,cursor:refreshing?"wait":"pointer",fontWeight:600}}>{refreshing?"⏳":"🔄 Refresh"}</button>
@@ -1297,6 +1328,83 @@ function App(){
 
         {/* ====== QUESTS ====== */}
         {/* ====== MISSIONS ====== */}
+        {/* ====== GOALS TAB ====== */}
+        {tab==="goals"&&<div style={{animation:"slideUp 0.4s"}}>
+          {/* Team Goals */}
+          <div style={{background:T.bgCard,borderRadius:16,padding:18,border:`1px solid ${T.border}`,marginBottom:14,boxShadow:T.shadow}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+              <div style={{fontSize:14,fontWeight:800}}>👥 Team Goals — {curPeriod?.name}</div>
+              {adminUnlocked&&<button onClick={()=>setShowTeamGoals(true)} style={{padding:"4px 10px",borderRadius:8,border:`1px solid ${T.border}`,background:T.bgSubtle,fontSize:11,cursor:"pointer",color:T.textSec}}>✏️ Edit</button>}
+            </div>
+            {[
+              {label:"💰 Premium",value:teamRev,goal:teamGoalsCfg.premium,fmt:fmtShort,color:"#f59e0b"},
+              {label:"📋 Total Policies",value:teamPols,goal:teamGoalsCfg.policies,color:"#6366f1"},
+              {label:"🏠 Personal Lines",value:agents.reduce((s,a)=>s+getPolicyBreakdown(a.sales).personal.count,0),goal:teamGoalsCfg.personalLines,color:"#6366f1"},
+              {label:"❤️ Life Policies",value:agents.reduce((s,a)=>s+getPolicyBreakdown(a.sales).life.count,0),goal:teamGoalsCfg.life,color:"#db2777"},
+              {label:"🏢 Commercial",value:agents.reduce((s,a)=>s+getPolicyBreakdown(a.sales).commercial.count,0),goal:teamGoalsCfg.commercial,color:"#059669"},
+            ].map((g,i)=>{
+              const pct=g.goal>0?Math.min((g.value/g.goal)*100,100):0;
+              const done=pct>=100;
+              const display=g.fmt?g.fmt(g.value):g.value;
+              const goalDisplay=g.fmt?g.fmt(g.goal):g.goal;
+              return <div key={i} style={{marginBottom:14}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}>
+                  <span style={{fontSize:13,fontWeight:700,color:done?"#059669":T.text}}>{g.label}</span>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <span style={{fontSize:12,fontWeight:800,color:done?"#059669":g.color}}>{display}</span>
+                    <span style={{fontSize:10,color:T.textMuted}}>/ {goalDisplay}</span>
+                    <span style={{fontSize:10,fontWeight:700,color:done?"#059669":g.color,background:done?"#dcfce7":`${g.color}15`,padding:"2px 8px",borderRadius:8}}>{done?"✅ Done!":pct.toFixed(0)+"%"}</span>
+                  </div>
+                </div>
+                <div style={{height:10,background:T.bgSubtle,borderRadius:5,overflow:"hidden",position:"relative"}}>
+                  <div style={{width:`${pct}%`,height:"100%",background:done?"#059669":`linear-gradient(90deg,${g.color}88,${g.color})`,borderRadius:5,transition:"width 1.2s"}}/>
+                  {pct>5&&<div style={{position:"absolute",top:"50%",left:`${Math.min(pct-2,92)}%`,transform:"translateY(-50%)",fontSize:8,fontWeight:800,color:"#fff"}}>{pct.toFixed(0)}%</div>}
+                </div>
+              </div>;
+            })}
+          </div>
+
+          {/* Individual Producer Goals */}
+          <div style={{fontSize:13,fontWeight:800,color:T.textSec,marginBottom:10}}>👤 Individual Goals — {curPeriod?.name}</div>
+          {agents.map(a=>{
+            const goals=a.goals||{premium:25000,policies:20,life:3,commercial:2,personalLines:15};
+            const aBreak=getPolicyBreakdown(a.sales);
+            const isMe=a.id===selAgent;
+            return <div key={a.id} onClick={()=>setSelAgent(a.id)} style={{background:T.bgCard,borderRadius:16,padding:16,border:isMe?`2px solid ${a.color}44`:`1px solid ${T.border}`,marginBottom:12,boxShadow:T.shadow,cursor:"pointer"}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+                <div style={{width:40,height:40,borderRadius:12,background:`${a.color}15`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22}}>{a.avatar}</div>
+                <div style={{flex:1}}><div style={{fontSize:13,fontWeight:800,color:a.color}}>{a.name}</div><div style={{fontSize:10,color:T.textMuted}}>{curPeriod?.name} targets</div></div>
+                {adminUnlocked&&<button onClick={e=>{e.stopPropagation();setSelAgent(a.id);handleAdminClick();}} style={{padding:"4px 8px",borderRadius:8,border:`1px solid ${T.border}`,background:T.bgSubtle,fontSize:10,cursor:"pointer",color:T.textSec}}>✏️ Edit Goals</button>}
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8}}>
+                {[
+                  {label:"Premium",value:a.totalRevenue,goal:goals.premium,fmt:fmtShort,color:"#f59e0b"},
+                  {label:"Policies",value:a.totalPolicies,goal:goals.policies,color:a.color},
+                  {label:"Pers. Lines",value:aBreak.personal.count,goal:goals.personalLines,color:"#6366f1"},
+                  {label:"Life",value:aBreak.life.count,goal:goals.life,color:"#db2777"},
+                  {label:"Commercial",value:aBreak.commercial.count,goal:goals.commercial,color:"#059669"},
+                ].map((g,j)=>{
+                  const pct=g.goal>0?Math.min((g.value/g.goal)*100,100):0;
+                  const done=pct>=100;
+                  const r=18,circ=2*Math.PI*r,offset=circ-(pct/100)*circ;
+                  return <div key={j} style={{textAlign:"center"}}>
+                    <div style={{position:"relative",width:44,height:44,margin:"0 auto 4px"}}>
+                      <svg width="44" height="44" viewBox="0 0 44 44" style={{transform:"rotate(-90deg)"}}>
+                        <circle cx="22" cy="22" r={r} fill="none" stroke={T.bgSubtle} strokeWidth="4"/>
+                        <circle cx="22" cy="22" r={r} fill="none" stroke={done?"#059669":g.color} strokeWidth="4" strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"/>
+                      </svg>
+                      <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",fontSize:9,fontWeight:800,color:done?"#059669":g.color}}>{done?"✓":pct.toFixed(0)+"%"}</div>
+                    </div>
+                    <div style={{fontSize:11,fontWeight:800,color:T.text}}>{g.fmt?g.fmt(g.value):g.value}</div>
+                    <div style={{fontSize:9,color:T.textMuted}}>{g.label}</div>
+                    <div style={{fontSize:9,color:T.textMuted}}>/{g.fmt?g.fmt(g.goal):g.goal}</div>
+                  </div>;
+                })}
+              </div>
+            </div>;
+          })}
+        </div>}
+
         {tab==="missions"&&<div style={{animation:"slideUp 0.4s"}}>
           {(()=>{
             const now=new Date();
