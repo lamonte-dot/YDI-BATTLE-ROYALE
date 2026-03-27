@@ -1127,7 +1127,7 @@ function App(){
   const commCount=sales.filter(s=>categorizePolicy(s.type)==="commercial").length;
   const maxTeamRev=Math.max(...agents.map(a=>a.totalRevenue),1);
   const maxTeamPol=Math.max(...agents.map(a=>a.totalPolicies),1);
-  const allReviews=agents.flatMap(a=>a.sales.filter(s=>s.review&&s.review.trim()).map(s=>({...s,agentName:a.name,agentAvatar:a.avatar,agentColor:a.color})));
+  const allReviews=agents.flatMap(a=>a.sales.filter(s=>s.review&&String(s.review).trim()).map(s=>({...s,agentName:a.name,agentAvatar:a.avatar,agentColor:a.color})));
   const teamGoalTier=getTier(TEAM_GOALS,teamRev);
   const lifeBoard=agents.map(a=>{const ls=a.sales.filter(s=>s.type.toLowerCase().includes("life"));return{...a,lifeCount:ls.length,lifePrem:ls.reduce((s,p)=>s+p.price,0)};}).sort((a,b)=>b.lifePrem-a.lifePrem);
 
@@ -1704,7 +1704,7 @@ function App(){
         {/* ====== REVIEWS ====== */}
         {tab==="reviews"&&<div style={{animation:"slideUp 0.4s"}}>
           <div className="ydi-review-grid" style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(agents.length,4)},1fr)`,gap:10,marginBottom:16}}>
-            {agents.map(a=>{const revs=a.sales.filter(s=>s.review&&s.review.trim()),aBreak=getPolicyBreakdown(a.sales);return(
+            {agents.map(a=>{const revs=a.sales.filter(s=>s.review&&String(s.review).trim()),aBreak=getPolicyBreakdown(a.sales);return(
               <div key={a.id} style={{background:T.bgCard,borderRadius:14,padding:16,border:`1px solid ${T.border}`,boxShadow:T.shadow,textAlign:"center"}}>
                 <div style={{fontSize:26,marginBottom:4}}>{a.avatar}</div>
                 <div style={{fontSize:12,fontWeight:700,color:a.color,marginBottom:6}}>{a.name.split(" ")[0]}</div>
