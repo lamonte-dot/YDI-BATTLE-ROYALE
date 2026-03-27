@@ -433,7 +433,15 @@ function saveLS(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
 
 /* ===== PERIODS ===== */
 function getCurPeriodIdx(periods){const t=new Date();t.setHours(0,0,0,0);for(let i=0;i<periods.length;i++){const s=new Date(periods[i].start+"T00:00:00"),e=new Date(periods[i].end+"T23:59:59");if(t>=s&&t<=e)return i;}let l=-1;for(let i=0;i<periods.length;i++){if(t>new Date(periods[i].end+"T23:59:59"))l=i;}return l>=0?l:0;}
-function filterByPeriod(sales,p){if(!p)return sales;const s=new Date(p.start+"T00:00:00"),e=new Date(p.end+"T23:59:59");return sales.filter(x=>x.boundDateObj&&x.boundDateObj>=s&&x.boundDateObj<=e);}
+function filterByPeriod(sales,p){
+  if(!p)return sales;
+  try{
+    const s=new Date(p.start+"T00:00:00"),e=new Date(p.end+"T23:59:59");
+    return sales.filter(x=>{
+      try{return x.boundDateObj&&x.boundDateObj>=s&&x.boundDateObj<=e;}catch(err){return false;}
+    });
+  }catch(err){return sales;}
+}
 
 /* ===== POLICY CATEGORIZATION ===== */
 function categorizePolicy(type){
@@ -1727,7 +1735,7 @@ function App(){
         <div style={{marginTop:20,padding:"12px 16px",background:T.bgCard,borderRadius:12,border:`1px solid ${T.border}`,display:"flex",justifyContent:"space-between",fontSize:10,color:T.textMuted,flexWrap:"wrap",gap:6}}>
           <span>📡 {agents.length} Producers · {fmtPrice(teamRev)} / {teamPols} pol</span>
           <span>{curPeriod?.name||"All Time"} · {agent.name} · #{rankOf} · {earned}/{badges.length} Badges</span>
-          <span style={{color:"#6366f1",fontWeight:700}}>v12.0 — YDI Battle Royale</span>
+          <span style={{color:"#6366f1",fontWeight:700}}>v13.0 — YDI Battle Royale</span>
         </div>
       </div>
     </div>
