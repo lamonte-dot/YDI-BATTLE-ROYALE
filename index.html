@@ -1,0 +1,1541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Young Douglas Insurance Services — Sales Dashboard</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow-x:hidden}
+body{font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,sans-serif}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.3)}}
+@keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-20px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+@keyframes raceMove{0%{transform:translateX(0)}50%{transform:translateX(4px)}100%{transform:translateX(0)}}
+@keyframes gallop{0%{transform:translateY(0)}50%{transform:translateY(-4px)}100%{transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+@keyframes challengePulse{0%,100%{box-shadow:0 0 0 0 rgba(99,102,241,0.4)}50%{box-shadow:0 0 0 8px rgba(99,102,241,0)}}
+input,select,textarea{font-family:inherit}
+@media(max-width:600px){
+  .ydi-header{flex-wrap:wrap;gap:8px !important}
+  .ydi-header-btns{flex-wrap:wrap;justify-content:flex-end}
+  .ydi-tabs{gap:2px !important}
+  .ydi-tabs button{font-size:9px !important;padding:7px 2px !important}
+  .ydi-agent-tabs button{min-width:70px !important;padding:5px 6px !important}
+  .ydi-stat-grid{grid-template-columns:repeat(2,1fr) !important}
+  .ydi-h2h-grid{grid-template-columns:repeat(2,1fr) !important}
+  .ydi-badge-grid{grid-template-columns:repeat(3,1fr) !important}
+  .ydi-review-grid{grid-template-columns:repeat(2,1fr) !important}
+  .ydi-goal-tiers{gap:3px !important}
+  .ydi-main{padding:10px !important}
+  .ydi-container{padding:0 !important}
+}
+@media(min-width:601px) and (max-width:900px){
+  .ydi-stat-grid{grid-template-columns:repeat(2,1fr) !important}
+  .ydi-h2h-grid{grid-template-columns:repeat(2,1fr) !important}
+}
+@media(min-width:1200px){
+  .ydi-container{max-width:100% !important;padding:0 24px !important}
+}
+@media(min-width:1600px){
+  .ydi-container{max-width:1400px !important}
+  .ydi-main{padding:24px !important}
+}
+</style>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const{useState,useEffect,useCallback,useRef}=React;
+
+const LOGO_B64="data:image/jpeg;base64,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AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//9k=";
+
+const CTM_WEB_APP_URL="https://script.google.com/macros/s/AKfycby8MsjRWmPysVO9ehRAtRQH1okvKH6xgAZqAj_7LxsoCaF2GAhpft-CD0CIpNq1-QV_/exec";
+const PROXY_URL="https://ydi-ctm-proxy.lamonte.workers.dev/gs";
+const SHEET_CREATOR_URL=PROXY_URL;
+const ADMIN_PASSWORD="YDI2026";
+
+const AVATAR_OPTIONS=["👨‍💼","👩‍💼","🧑‍💼","👨🏻‍💼","👩🏻‍💼","👨🏽‍💼","👩🏽‍💼","👨🏾‍💼","👩🏾‍💼","👨🏿‍💼","👩🏿‍💼","🧑🏽‍💼","🧑🏾‍💼","🧑🏿‍💼","👨‍💻","👩‍💻","🧑‍💻","👨🏻‍💻","👩🏻‍💻","👨🏽‍💻","👩🏽‍💻","👨🏾‍💻","👩🏾‍💻","👨🏿‍💻","👩🏿‍💻","👩‍🔧","👨‍🔧","🧑‍🔧","👸","👸🏻","👸🏽","👸🏾","👸🏿","🤴","🤴🏻","🤴🏽","🤴🏾","🤴🏿","🦸","🦸🏻","🦸🏽","🦸🏾","🦸🏿","🦹","🧙","🥷","🥷🏻","🥷🏽","🥷🏾","🥷🏿","😎","🤩","💪","💪🏻","💪🏽","💪🏾","💪🏿","🦊","🐺","🦅","🐉","🔥","⭐","💎","🏆","🎯","🚀","👑","⚡","🌟","💰","🎪","🐱","😸","🐈"];
+
+const CUSTOM_SOUNDS=[
+  {id:"aberrantrealities",name:"🎺 Loud Fanfare",src:"https://lamonte-dot.github.io/YDI-BATTLE-ROYALE/sounds/aberrantrealities-loud-fanfare-trumpet-effect-01-412045.mp3"},
+  {id:"astralsynthesizer",name:"🏆 Victory Synth",src:"https://lamonte-dot.github.io/YDI-BATTLE-ROYALE/sounds/astralsynthesizer-11l-victory-1749704548397-358776.mp3"},
+  {id:"freesound_badass",name:"💪 Badass Victory",src:"https://lamonte-dot.github.io/YDI-BATTLE-ROYALE/sounds/freesound_community-badass-victory-85546.mp3"},
+  {id:"freesound_fanfare",name:"🎵 Success Fanfare",src:"https://lamonte-dot.github.io/YDI-BATTLE-ROYALE/sounds/freesound_community-success-fanfare-trumpets-6185.mp3"},
+  {id:"mixkit_applause",name:"👏 Applause",src:"https://lamonte-dot.github.io/YDI-BATTLE-ROYALE/sounds/mixkit-animated-small-group-applause-523.wav"},
+  {id:"mixkit_cheer",name:"🎉 Party Cheer",src:"https://lamonte-dot.github.io/YDI-BATTLE-ROYALE/sounds/mixkit-birthday-crowd-party-cheer-531.wav"},
+  {id:"mixkit_guitar",name:"🎸 Guitar Riff",src:"https://lamonte-dot.github.io/YDI-BATTLE-ROYALE/sounds/mixkit-cool-guitar-riff-2321.wav"},
+  {id:"olivia_victory",name:"🙌 Victory Shouts",src:"https://lamonte-dot.github.io/YDI-BATTLE-ROYALE/sounds/olivia_parker-victory-shouts-demo-310503.mp3"},
+  {id:"brass_fanfare",name:"🎼 Brass Fanfare",src:"https://lamonte-dot.github.io/YDI-BATTLE-ROYALE/sounds/u_ss015dykrt-brass-fanfare-with-timpani-and-winchimes-reverberated-146260.mp3"},
+  {id:"congrats_chime",name:"✨ Congrats Chime",src:"https://lamonte-dot.github.io/YDI-BATTLE-ROYALE/sounds/yoursperfectguy-congratulations-message-notification-sound-sfx-1-334724.mp3"},
+  {id:"scifi_congrats",name:"🚀 Sci-Fi Congrats",src:"https://lamonte-dot.github.io/YDI-BATTLE-ROYALE/sounds/yoursperfectguy-sci-fi-congratulations-message-notification-sound-sfx-334728.mp3"},
+];
+const SOUND_OPTIONS=[
+  {id:"chime",name:"🔔 Chime",freqs:[523.25,659.25,783.99,1046.50]},
+  {id:"fanfare",name:"🎺 Fanfare",freqs:[261.63,329.63,392,523.25,659.25]},
+  {id:"ding",name:"🛎️ Ding",freqs:[880]},
+  {id:"victory",name:"🏆 Victory",freqs:[392,523.25,659.25,783.99,1046.50,1318.51]},
+  {id:"cash",name:"💰 Cash Register",freqs:[1200,800,1200,1600]},
+  {id:"power",name:"⚡ Power Up",freqs:[200,400,600,800,1000,1200]},
+  ...CUSTOM_SOUNDS,
+];
+const DEFAULT_AGENTS=[
+  {id:"joey",name:"Joey",avatar:"👨‍💼",color:"#6366f1",gid:"15114878",sheetId:"1lcpyQctMAIZ1Q-cDFIpWNelf7R_Y61PJCfCXyVFhh4E",sound:"chime",goals:{premium:25000,policies:20,life:3,commercial:2,personalLines:15}},
+  {id:"melissa",name:"Melissa Douglas",avatar:"👩‍💼",color:"#db2777",gid:"0",sheetId:"1A0zojTTbqWpohNSsa9lmA3HoOSCcC8a7yxl-VLvjCLI",sound:"fanfare",goals:{premium:25000,policies:20,life:3,commercial:2,personalLines:15}},
+  {id:"stephanie",name:"Stephanie Jones",avatar:"👩‍💻",color:"#0891b2",gid:"0",sheetId:"1wGf4D137wbeI80R67NgusuAA5rGMa2xZJjqmkmAxdfA",sound:"victory",goals:{premium:25000,policies:20,life:3,commercial:2,personalLines:15}},
+  {id:"kim",name:"Kim Reese",avatar:"👩‍🔧",color:"#d97706",gid:"0",sheetId:"1qFrMldIUyixXDAjxHDUq8ZocoVaztWRBF6yvo2w6G3Y",sound:"cash",goals:{premium:25000,policies:20,life:3,commercial:2,personalLines:15}},
+];
+const MASTER_SHEET_ID="1lcpyQctMAIZ1Q-cDFIpWNelf7R_Y61PJCfCXyVFhh4E";
+const DEFAULT_TEAM_GOALS={premium:100000,policies:80,life:12,commercial:8,personalLines:60};
+const TEAM_GOALS=[{name:"Bronze",target:75000,icon:"🥉",color:"#b45309"},{name:"Silver",target:100000,icon:"🥈",color:"#6b7280"},{name:"Gold",target:125000,icon:"🥇",color:"#ca8a04"},{name:"Platinum",target:150000,icon:"💎",color:"#7c3aed"},{name:"Diamond",target:200000,icon:"👑",color:"#0891b2"}];
+const DEFAULT_PERIODS=[
+  {name:"2/18-3/18",start:"2026-02-18",end:"2026-03-18"},
+  {name:"3/19-4/17/2026",start:"2026-03-19",end:"2026-04-17"},
+  {name:"4/18-5/19/2026",start:"2026-04-18",end:"2026-05-19"},
+  {name:"5/20-6/18/2026",start:"2026-05-20",end:"2026-06-18"},
+  {name:"6/19-7/17/2026",start:"2026-06-19",end:"2026-07-17"},
+  {name:"7/18-8/19/2026",start:"2026-07-18",end:"2026-08-19"},
+  {name:"8/20-9/18/2026",start:"2026-08-20",end:"2026-09-18"},
+  {name:"9/19-10/19/2026",start:"2026-09-19",end:"2026-10-19"},
+  {name:"10/20-11/17/2026",start:"2026-10-20",end:"2026-11-17"},
+  {name:"11/18-12/17/2026",start:"2026-11-18",end:"2026-12-17"},
+  {name:"12/18-1/17/2027",start:"2026-12-18",end:"2027-01-17"},
+];
+
+const LIGHT={bg:"#f8fafc",bgCard:"#ffffff",bgSubtle:"#f1f5f9",border:"#e2e8f0",borderLight:"#f1f5f9",text:"#0f172a",textSec:"#475569",textMuted:"#94a3b8",shadow:"0 1px 3px rgba(0,0,0,0.06)"};
+const DARK_THEME={bg:"#0f172a",bgCard:"#1e293b",bgSubtle:"#334155",border:"#475569",borderLight:"#334155",text:"#f1f5f9",textSec:"#cbd5e1",textMuted:"#64748b",shadow:"0 1px 3px rgba(0,0,0,0.3)"};
+
+function loadLS(k,d){try{const s=localStorage.getItem(k);if(s){const p=JSON.parse(s);if(p)return p;}}catch(e){}return d;}
+function saveLS(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+
+function getCurPeriodIdx(periods){const t=new Date();t.setHours(0,0,0,0);for(let i=0;i<periods.length;i++){const s=new Date(periods[i].start+"T00:00:00"),e=new Date(periods[i].end+"T23:59:59");if(t>=s&&t<=e)return i;}let l=-1;for(let i=0;i<periods.length;i++){if(t>new Date(periods[i].end+"T23:59:59"))l=i;}return l>=0?l:0;}
+function filterByPeriod(sales,p){if(!p)return sales;try{const s=new Date(p.start+"T00:00:00"),e=new Date(p.end+"T23:59:59");return sales.filter(x=>{try{return x.boundDateObj&&x.boundDateObj>=s&&x.boundDateObj<=e;}catch(err){return false;}});}catch(err){return sales;}}
+
+function categorizePolicy(type){const t=(type||"").toLowerCase();if(t.includes("life")||t.includes("annuity")||t.includes("term")||t.includes("whole life")||t.includes("universal life"))return"life";if(t.includes("commercial")||t.includes("business")||t.includes("workers")||t.includes("bop")||t.includes("general liability")||t.includes("professional")||t.includes("restaurant")||t.includes("habitational")||t.includes("gl ")||t.includes("liability"))return"commercial";return"personal";}
+function getPolicyBreakdown(sales){const b={personal:{count:0,premium:0},life:{count:0,premium:0},commercial:{count:0,premium:0}};sales.forEach(s=>{const cat=categorizePolicy(s.type);b[cat].count++;b[cat].premium+=s.price;});return b;}
+
+
+async function fetchSheetTab(sheetId,gid){const sid=sheetId||MASTER_SHEET_ID;const urls=[`https://docs.google.com/spreadsheets/d/${sid}/export?gid=${gid}&format=csv`,`https://docs.google.com/spreadsheets/d/${sid}/gviz/tq?tqx=out:csv&gid=${gid}`];for(const u of urls){try{const r=await fetch(u,{redirect:'follow'});if(!r.ok)continue;const t=await r.text();if(t&&t.length>10&&!t.startsWith("<!DOCTYPE"))return t;}catch(e){}}return null;}
+
+window._ydiAudio=window._ydiAudio||new Audio();
+window._ydiAudio.volume=0.8;
+window._ydiLock=false;
+function stopAllAudio(){try{window._ydiAudio.pause();window._ydiAudio.currentTime=0;window._ydiAudio.src="";}catch(e){}window._ydiLock=false;}
+function playSound(id){if(window._ydiLock)stopAllAudio();const s=SOUND_OPTIONS.find(x=>x.id===id)||SOUND_OPTIONS[0];if(s.src){try{window._ydiLock=true;window._ydiAudio.src=s.src;window._ydiAudio.load();const p=window._ydiAudio.play();if(p&&p.catch)p.catch(()=>{window._ydiLock=false;});window._ydiAudio.onended=()=>{window._ydiLock=false;};}catch(e){window._ydiLock=false;}return;}try{const ctx=new(window.AudioContext||window.webkitAudioContext)();s.freqs.forEach((f,i)=>{const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.type="sine";o.frequency.value=f;const st=ctx.currentTime+i*0.12;g.gain.setValueAtTime(0.15,st);g.gain.exponentialRampToValueAtTime(0.001,st+0.4);o.start(st);o.stop(st+0.4);});}catch(e){}}
+
+function findCol(h,c){const hl=h.map(x=>x.toLowerCase().trim());for(const k of c){const i=hl.findIndex(x=>x.includes(k.toLowerCase()));if(i>=0)return h[i];}return null;}
+function parseDate(s){if(!s)return null;const p=s.split("/");if(p.length>=3)return new Date(p[2],p[0]-1,p[1]);const d=new Date(s);return isNaN(d)?null:d;}
+function daysBetween(a,b){if(!a||!b)return null;return Math.round(Math.abs(b-a)/86400000);}
+function parseRows(rows,headers){
+  const nC=findCol(headers,["name","NAME","client"]),sC=findCol(headers,["status"]),bC=findCol(headers,["bound date","bound"]),eC=findCol(headers,["effective date","effective"]),pC=findCol(headers,["price","premium"]),plC=findCol(headers,["sales platform","platform","carrier"]),tC=findCol(headers,["type of insurance","type","line"]),poC=findCol(headers,["policy number","policy"]),rC=findCol(headers,["referral","ref"]),lsC=findCol(headers,["lead source","lead_source","source"]),ldC=findCol(headers,["lead date","lead_date"]),rvC=findCol(headers,["review","reviews","rating","customer review"]);
+  return rows.filter(r=>{const n=nC?r[nC]:null,p=pC?r[pC]:null;if(!n||!p)return false;if(n==="NAME"||n==="name")return false;return!isNaN(parseFloat(String(p).replace(/[$,]/g,"")));}).map(r=>{
+    const bd=parseDate(bC?(r[bC]||""):""),ld=parseDate(ldC?(r[ldC]||""):"");
+    return{name:nC?(r[nC]||"Unknown"):"Unknown",status:sC?(r[sC]||"Bound"):"Bound",boundDate:bC?(r[bC]||""):"",effectiveDate:eC?(r[eC]||""):"",price:pC?(parseFloat(String(r[pC]||"0").replace(/[$,]/g,""))||0):0,platform:plC?(r[plC]||"Unknown"):"Unknown",type:tC?(r[tC]||"Other"):"Other",policyNumber:poC?(r[poC]||""):"",referral:rC?!!(r[rC]&&String(r[rC]).trim().length>0):false,leadSource:lsC?(r[lsC]||""):"",review:rvC?(r[rvC]||""):"",daysToBindFromLead:daysBetween(ld,bd),boundDateObj:bd};
+  });
+}
+
+const revTiers=[{name:"Bronze",target:15000,icon:"🥉"},{name:"Silver",target:25000,icon:"🥈"},{name:"Gold",target:40000,icon:"🥇"},{name:"Platinum",target:60000,icon:"💎"},{name:"Diamond",target:100000,icon:"👑"}];
+const polTiers=[{name:"Starter",target:5,icon:"🌱"},{name:"Hustler",target:10,icon:"🔥"},{name:"Closer",target:15,icon:"⚡"},{name:"Machine",target:25,icon:"🤖"},{name:"Legend",target:40,icon:"🏆"}];
+function getTier(tiers,v){let c=null,n=tiers[0];for(let i=0;i<tiers.length;i++){if(v>=tiers[i].target){c=tiers[i];n=tiers[i+1]||null;}else{n=tiers[i];break;}}return{current:c,next:n};}
+function getBadges(s){const n=s.length,r=s.reduce((a,p)=>a+p.price,0),ty=[...new Set(s.map(x=>x.type))],pl=[...new Set(s.map(x=>x.platform))],mo=[...new Set(s.map(x=>{const p=x.boundDate.split("/");return p.length>=2?p[0]:"";}).filter(Boolean))],li=s.filter(x=>x.type.toLowerCase().includes("life")),co=s.filter(x=>categorizePolicy(x.type)==="commercial");return[{name:"First Blood",desc:"Bind first policy",earned:n>=1,icon:"🎯"},{name:"High Roller",desc:"$5K+ policy",earned:s.some(x=>x.price>=5000),icon:"💰"},{name:"Whale Hunter",desc:"$10K+ policy",earned:s.some(x=>x.price>=10000),icon:"🐋"},{name:"Diversified",desc:"5+ types",earned:ty.length>=5,icon:"🎨"},{name:"Platform Master",desc:"5+ platforms",earned:pl.length>=5,icon:"🌐"},{name:"Referral King",desc:"Referral deal",earned:s.some(x=>x.referral),icon:"🤝"},{name:"Commercial Crusher",desc:"Commercial policy",earned:co.length>=1,icon:"🏢"},{name:"Safety First",desc:"Workers Comp",earned:s.some(x=>x.type.toLowerCase().includes("workers")),icon:"🦺"},{name:"Double Digit",desc:"10+ policies",earned:n>=10,icon:"🔟"},{name:"Back-to-Back",desc:"2+ months",earned:mo.length>=2,icon:"📅"},{name:"$25K Club",desc:"$25K premium",earned:r>=25000,icon:"💵"},{name:"Hat Trick",desc:"3+ in a week",earned:n>=3,icon:"🎩"},{name:"Life Saver",desc:"3 life policies",earned:li.length>=3,icon:"❤️"},{name:"Commercial King",desc:"5 commercial",earned:co.length>=5,icon:"🏙️"},{name:"Speed Demon",desc:"Avg bind <7d",earned:(()=>{const d=s.filter(x=>x.daysToBindFromLead!==null);return d.length>0&&(d.reduce((a,x)=>a+x.daysToBindFromLead,0)/d.length)<7;})(),icon:"⚡"},{name:"$75K Legend",desc:"$75K premium",earned:r>=75000,icon:"🔥"}];}
+function calcXP(s,ctmStats){let xp=0;s.forEach(x=>{xp+=100;if(x.price>=5000)xp+=200;if(x.price>=10000)xp+=300;if(x.referral)xp+=150;if(categorizePolicy(x.type)==="commercial")xp+=100;if(x.type.toLowerCase().includes("life"))xp+=120;});xp+=getBadges(s).filter(a=>a.earned).length*250;if(ctmStats){xp+=(ctmStats.answeredCalls||0)*15+(ctmStats.inboundLeads||0)*25;}return xp;}
+const xpLevels=[{level:1,xp:0},{level:2,xp:1000},{level:3,xp:2500},{level:4,xp:4500},{level:5,xp:7000},{level:6,xp:10000},{level:7,xp:14000},{level:8,xp:19000},{level:9,xp:25000},{level:10,xp:35000}];
+function getLevel(xp){let l=xpLevels[0],n=xpLevels[1];for(let i=0;i<xpLevels.length;i++){if(xp>=xpLevels[i].xp){l=xpLevels[i];n=xpLevels[i+1]||null;}}return{current:l,next:n};}
+function getStreak(s){if(!s.length)return{current:0,best:0};const d=s.map(x=>x.boundDateObj).filter(Boolean).sort((a,b)=>a-b);if(!d.length)return{current:0,best:0};const gw=d=>{const j=new Date(d.getFullYear(),0,1);return`${d.getFullYear()}-W${Math.ceil(((d-j)/86400000+j.getDay()+1)/7)}`;};const w=[...new Set(d.map(gw))].sort();let st=1,b=1;for(let i=1;i<w.length;i++){const[y1,w1]=w[i-1].split("-W").map(Number),[y2,w2]=w[i].split("-W").map(Number);if((y1===y2&&w2===w1+1)||(y2===y1+1&&w1>=52&&w2===1))st++;else st=1;b=Math.max(b,st);}return{current:st,best:b};}
+
+const fmtPrice=v=>"$"+v.toLocaleString("en-US",{minimumFractionDigits:2});
+const fmtShort=v=>v>=1000?"$"+(v/1000).toFixed(1)+"K":"$"+v.toLocaleString();
+const fmtPD=d=>{if(!d)return"";const dt=new Date(d+"T00:00:00");return(dt.getMonth()+1)+"/"+dt.getDate()+"/"+dt.getFullYear();};
+const rankEmojis=["👑","🥈","🥉","4️⃣","5️⃣","6️⃣","7️⃣","8️⃣"];
+const barColors=["#6366f1","#059669","#d97706","#dc2626","#7c3aed","#0891b2","#db2777","#0d9488"];
+
+function useConfetti(){const c=useRef(null),p=useRef([]),f=useRef(null);const launch=useCallback(()=>{const cv=c.current;if(!cv)return;const ctx=cv.getContext("2d");cv.width=window.innerWidth;cv.height=window.innerHeight;const cols=["#6366f1","#ec4899","#f59e0b","#10b981","#ef4444","#8b5cf6","#06b6d4"];for(let i=0;i<120;i++)p.current.push({x:Math.random()*cv.width,y:-20-Math.random()*400,w:6+Math.random()*6,h:4+Math.random()*4,color:cols[Math.floor(Math.random()*cols.length)],vx:(Math.random()-0.5)*6,vy:2+Math.random()*4,rot:Math.random()*360,rs:(Math.random()-0.5)*12,life:1,decay:0.003+Math.random()*0.004});const anim=()=>{ctx.clearRect(0,0,cv.width,cv.height);p.current=p.current.filter(x=>x.life>0);p.current.forEach(x=>{x.x+=x.vx;x.vy+=0.08;x.y+=x.vy;x.rot+=x.rs;x.life-=x.decay;ctx.save();ctx.translate(x.x,x.y);ctx.rotate(x.rot*Math.PI/180);ctx.globalAlpha=x.life;ctx.fillStyle=x.color;ctx.fillRect(-x.w/2,-x.h/2,x.w,x.h);ctx.restore();});if(p.current.length>0)f.current=requestAnimationFrame(anim);};if(f.current)cancelAnimationFrame(f.current);anim();},[]);return{canvasRef:c,launch};}
+
+function MiniBar({value,max,color,height=8,T}){const pct=max>0?Math.min((value/max)*100,100):0;return <div style={{width:"100%",height,background:T.bgSubtle,borderRadius:height/2,overflow:"hidden"}}><div style={{width:`${pct}%`,height:"100%",background:color,borderRadius:height/2,transition:"width 1.2s"}}/></div>;}
+function Modal({children,onClose,T}){return <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.55)",zIndex:10000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={onClose}><div onClick={e=>e.stopPropagation()} style={{background:T.bgCard,borderRadius:20,padding:28,maxWidth:650,width:"100%",maxHeight:"85vh",overflow:"auto",boxShadow:"0 20px 60px rgba(0,0,0,0.3)",color:T.text}}>{children}</div></div>;}
+
+
+/* ===== USER GUIDE — EXPANDED ===== */
+function UserGuide({onClose,T}){
+  const[section,setSection]=useState("start");
+  const sections=[
+    {id:"start",label:"🚀 Getting Started"},
+    {id:"spreadsheet",label:"📋 Spreadsheet Setup"},
+    {id:"periods",label:"📅 Periods"},
+    {id:"tabs",label:"📊 Dashboard Tabs"},
+    {id:"missions",label:"⚔️ Missions & Quests"},
+    {id:"profile",label:"🎨 Profile Customization"},
+    {id:"challenges",label:"🥊 Challenges"},
+    {id:"admin",label:"🔐 Admin Panel"},
+  ];
+  return <Modal onClose={onClose} T={T}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+      <h2 style={{fontSize:20,fontWeight:800}}>📖 User Guide</h2>
+      <button onClick={onClose} style={{background:"none",border:"none",fontSize:24,cursor:"pointer",color:T.textMuted}}>×</button>
+    </div>
+    <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:18}}>
+      {sections.map(s=><button key={s.id} onClick={()=>setSection(s.id)} style={{padding:"5px 10px",borderRadius:8,border:`1px solid ${section===s.id?"#6366f1":T.border}`,background:section===s.id?"#6366f1":T.bgSubtle,color:section===s.id?"#fff":T.textSec,fontSize:11,cursor:"pointer",fontWeight:600}}>{s.label}</button>)}
+    </div>
+    <div style={{fontSize:13,lineHeight:1.9,color:T.textSec}}>
+      {section==="start"&&<div>
+        <h3 style={{fontSize:15,fontWeight:800,color:T.text,marginBottom:8}}>🚀 Welcome to YDI Battle Royale</h3>
+        <p>This dashboard tracks real-time sales performance for all YDI producers. Data pulls live from each producer's Google Sheet every 5 minutes via the Apps Script Web App and Cloudflare proxy.</p>
+        <p style={{marginTop:10}}><strong>To get started:</strong> Select your name in the producer tab row at the top. Your stats, goals, badges, and missions are all personalized to you. The dashboard auto-detects the current contest period and shows only that period's sales.</p>
+        <p style={{marginTop:10}}>Hit <strong>🔄 Refresh</strong> any time to pull the latest data immediately.</p>
+      </div>}
+      {section==="spreadsheet"&&<div>
+        <h3 style={{fontSize:15,fontWeight:800,color:T.text,marginBottom:8}}>📋 How to Fill Out Your Spreadsheet</h3>
+        <p>Each producer has their own Google Sheet with a <strong>"Current"</strong> tab. The dashboard reads this tab. Your sheet must have these columns (exact spelling matters):</p>
+        <div style={{background:T.bgSubtle,borderRadius:10,padding:12,margin:"10px 0",fontFamily:"monospace",fontSize:12}}>
+          <div style={{marginBottom:4,color:"#6366f1",fontWeight:700}}>Required Columns:</div>
+          <div>• <strong>NAME</strong> — Client full name (e.g. "John Smith" or "ABC Company")</div>
+          <div>• <strong>Price</strong> — Annual premium as a number (e.g. 1250 or 1,250)</div>
+          <div>• <strong>Bound Date</strong> — Date policy was bound: M/D/YYYY format (e.g. 3/27/2026)</div>
+          <div>• <strong>Status</strong> — Should be "Bound" for completed sales</div>
+          <div>• <strong>Type of Insurance</strong> — Policy type (see categories below)</div>
+          <div style={{marginTop:8,color:"#6366f1",fontWeight:700}}>Optional Columns (boosts XP/stats):</div>
+          <div>• <strong>Sales platform</strong> — Carrier used (Farmers, NEXT, CFP, etc.)</div>
+          <div>• <strong>Policy Number</strong> — Policy number for reference</div>
+          <div>• <strong>Lead Source</strong> — How lead came in (Website, Referral, Cold Call, etc.)</div>
+          <div>• <strong>Effective Date</strong> — Policy effective date</div>
+          <div>• <strong>Reviews</strong> — Customer review text (shows on Reviews tab + leaderboard)</div>
+        </div>
+        <div style={{background:T.bgSubtle,borderRadius:10,padding:12,margin:"10px 0",fontSize:12}}>
+          <div style={{marginBottom:4,color:"#db2777",fontWeight:700}}>Type of Insurance — How Policies Are Categorized:</div>
+          <div>• <strong style={{color:"#db2777"}}>❤️ Life</strong> — Include "life", "term", "whole life", "universal life", "annuity"</div>
+          <div>• <strong style={{color:"#059669"}}>🏢 Commercial</strong> — Include "commercial", "business", "workers", "bop", "restaurant", "habitational", "liability", "GL"</div>
+          <div>• <strong style={{color:"#6366f1"}}>🏠 Personal Lines</strong> — Everything else: Home, Auto, Condo, Motorcycle, Mobile Home, etc.</div>
+        </div>
+        <p style={{marginTop:8,fontWeight:600,color:"#b45309"}}>⚠️ Important: The Bound Date must fall within the current contest period to appear on the current period leaderboard. Data is filtered by Bound Date, not Effective Date.</p>
+      </div>}
+      {section==="periods"&&<div>
+        <h3 style={{fontSize:15,fontWeight:800,color:T.text,marginBottom:8}}>📅 Contest Periods</h3>
+        <p>Periods are preset monthly contest windows. The dashboard auto-detects today's date and shows the matching period. Admin can view historical periods by selecting from the period dropdown.</p>
+        <p style={{marginTop:10}}>Periods are managed in <strong>🔐 Admin → ⚙️ Periods</strong>. Each period has a name, start date, and end date. Only sales with Bound Dates in that range count for that period.</p>
+      </div>}
+      {section==="tabs"&&<div>
+        <h3 style={{fontSize:15,fontWeight:800,color:T.text,marginBottom:8}}>📊 Dashboard Tabs</h3>
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {[
+            {t:"📊 Dashboard",d:"Overview: premium, policies, policy breakdown (Personal Lines / Life / Commercial), team H2H comparison, daily motivation quote, team message board, and recent wins."},
+            {t:"🎯 Goals",d:"Individual and team goal tracking with circular progress rings for Premium, Policies, Personal Lines, Life, and Commercial. Click any producer card to see their goals."},
+            {t:"🏅 Leaderboard",d:"Race tracks, premium rankings with reviews, life sales leader, CTM call leaderboard, and active challenges between producers."},
+            {t:"🏆 Badges",d:"16 achievement badges that auto-unlock based on your sales data. Each earned badge gives +250 XP."},
+            {t:"⚔️ Missions",d:"Daily, weekly, and period missions with XP rewards. Missions auto-refresh based on your real data."},
+            {t:"📈 Breakdown",d:"Premium by insurance type, policies by platform/carrier, and top deals sorted by premium."},
+            {t:"🗺️ Quests",d:"Long-term revenue, policy, and activity quests with XP milestones."},
+            {t:"⭐ Reviews",d:"Customer reviews from your sheet's Reviews column. Shows per-producer summary cards + full review list."},
+          ].map((item,i)=><div key={i} style={{padding:"8px 12px",borderRadius:10,background:T.bgSubtle,border:`1px solid ${T.borderLight}`}}><div style={{fontSize:13,fontWeight:700,color:T.text,marginBottom:2}}>{item.t}</div><div style={{fontSize:12,color:T.textSec}}>{item.d}</div></div>)}
+        </div>
+      </div>}
+      {section==="missions"&&<div>
+        <h3 style={{fontSize:15,fontWeight:800,color:T.text,marginBottom:8}}>⚔️ How Missions Work</h3>
+        <p>Missions are auto-tracked challenges tied to your real sales data. There are four tiers:</p>
+        <div style={{display:"flex",flexDirection:"column",gap:6,marginTop:10}}>
+          <div style={{padding:"8px 12px",borderRadius:10,background:"#fffbeb",border:"1px solid #fde68a"}}><div style={{fontWeight:700,color:"#b45309"}}>⚡ Daily Missions</div><div style={{fontSize:12}}>Reset at midnight. Track calls answered and policies bound today. Goal: build daily momentum.</div></div>
+          <div style={{padding:"8px 12px",borderRadius:10,background:"#ede9fe",border:"1px solid #c4b5fd"}}><div style={{fontWeight:700,color:"#7c3aed"}}>🔥 Weekly Missions</div><div style={{fontSize:12}}>Reset each week. Track call blitzes, inbound leads, policies bound, and life policies this week.</div></div>
+          <div style={{padding:"8px 12px",borderRadius:10,background:"#dcfce7",border:"1px solid #bbf7d0"}}><div style={{fontWeight:700,color:"#059669"}}>🏆 Period Missions</div><div style={{fontSize:12}}>Run the full contest period. Premium targets, commercial count, life count, referrals. These are the big ones.</div></div>
+          <div style={{padding:"8px 12px",borderRadius:10,background:"#dbeafe",border:"1px solid #93c5fd"}}><div style={{fontWeight:700,color:"#1d4ed8"}}>👥 Team Missions</div><div style={{fontSize:12}}>The whole team contributes. When the team hits the target, everyone earns the XP. Collective wins.</div></div>
+        </div>
+        <p style={{marginTop:10}}>Each mission shows a <strong>ring progress indicator</strong> with your current progress vs target. Complete missions earn XP that feeds into your producer level (shown next to your name at the top).</p>
+        <p style={{marginTop:8}}>CTM call missions only appear when CallTrackingMetrics integration is active.</p>
+      </div>}
+      {section==="profile"&&<div>
+        <h3 style={{fontSize:15,fontWeight:800,color:T.text,marginBottom:8}}>🎨 Customizing Your Profile</h3>
+        <p>Each producer can personalize their profile directly from the dashboard — no admin needed:</p>
+        <div style={{display:"flex",flexDirection:"column",gap:8,marginTop:10}}>
+          <div style={{padding:"10px 12px",borderRadius:10,background:T.bgSubtle}}><div style={{fontWeight:700,color:T.text,marginBottom:3}}>🧑 Avatar</div><div style={{fontSize:12}}>Click the large avatar emoji at the top left (next to your name), OR click the small ✏️ icon on your producer card in the agent tab row. A picker shows all available emojis — select one and it saves automatically.</div></div>
+          <div style={{padding:"10px 12px",borderRadius:10,background:T.bgSubtle}}><div style={{fontWeight:700,color:T.text,marginBottom:3}}>🔊 Victory Sound</div><div style={{fontSize:12}}>Click the 🔊 button next to your name at top, OR the 🔊 icon on your agent card. Choose from 11 sounds including fanfares, victory shouts, guitar riffs, and synth effects. Click ▶️ Play to preview before selecting.</div></div>
+          <div style={{padding:"10px 12px",borderRadius:10,background:T.bgSubtle}}><div style={{fontWeight:700,color:T.text,marginBottom:3}}>🌙 Dark / Light Mode</div><div style={{fontSize:12}}>Click the 🌙 / ☀️ toggle in the top right header to switch between dark and light themes. Your preference is saved.</div></div>
+          <div style={{padding:"10px 12px",borderRadius:10,background:T.bgSubtle}}><div style={{fontWeight:700,color:T.text,marginBottom:3}}>🎯 Producer Goals</div><div style={{fontSize:12}}>Goals (premium target, policy count, life, commercial, personal lines) are set by Admin. Ask LaMonte to update your targets in the Admin panel. Individual goal targets show as circular progress rings in the Goals tab.</div></div>
+        </div>
+        <p style={{marginTop:10,color:T.textMuted,fontSize:12}}>All customizations save to your browser's local storage. They persist across sessions on the same device.</p>
+      </div>}
+      {section==="challenges"&&<div>
+        <h3 style={{fontSize:15,fontWeight:800,color:T.text,marginBottom:8}}>🥊 Producer Challenges</h3>
+        <p>Challenge any other producer to a head-to-head competition on a specific metric. Here's how:</p>
+        <div style={{display:"flex",flexDirection:"column",gap:8,marginTop:10}}>
+          <div style={{padding:"8px 12px",borderRadius:10,background:T.bgSubtle}}><strong>1. Go to Leaderboard tab</strong> — Each producer row has a <strong>⚔️ Challenge</strong> button.</div>
+          <div style={{padding:"8px 12px",borderRadius:10,background:T.bgSubtle}}><strong>2. Pick your metric</strong> — Premium, Policies, Life Policies, or Commercial Policies. The challenge is: who has more by end of period?</div>
+          <div style={{padding:"8px 12px",borderRadius:10,background:T.bgSubtle}}><strong>3. Issue the challenge</strong> — It saves and shows up in the Active Challenges section at the bottom of the Leaderboard tab. Both producers can see it.</div>
+          <div style={{padding:"8px 12px",borderRadius:10,background:T.bgSubtle}}><strong>4. Track live</strong> — The challenge card shows real-time progress bars for both producers with who's currently winning highlighted.</div>
+        </div>
+        <p style={{marginTop:10,color:"#b45309",fontWeight:600}}>⚠️ You cannot challenge yourself. Challenges are period-aware — the current period's data is compared.</p>
+      </div>}
+      {section==="admin"&&<div>
+        <h3 style={{fontSize:15,fontWeight:800,color:T.text,marginBottom:8}}>🔐 Admin Panel</h3>
+        <p>Password: <strong>YDI2026</strong> (change in the index.html ADMIN_PASSWORD constant)</p>
+        <p style={{marginTop:8}}>Admin can:</p>
+        <div style={{fontSize:12,marginTop:6,display:"flex",flexDirection:"column",gap:4}}>
+          <div>• Add/remove producers, set their colors, avatars, sounds</div>
+          <div>• Set individual producer goal targets (premium, policies, life, commercial, PL)</div>
+          <div>• Create new producer Google Sheets automatically</div>
+          <div>• Manage contest periods (add, edit, delete)</div>
+          <div>• Post and pin team messages on the message board</div>
+          <div>• View and switch between historical periods</div>
+          <div>• Set team-wide goal targets</div>
+        </div>
+      </div>}
+    </div>
+  </Modal>;
+}
+
+/* ===== CHALLENGE MODAL ===== */
+function ChallengeModal({fromAgent,toAgent,agents,allAgents,onChallenge,onClose,T}){
+  const[metric,setMetric]=useState("totalRevenue");
+  const metrics=[
+    {id:"totalRevenue",label:"💰 Total Premium",fmt:fmtShort},
+    {id:"totalPolicies",label:"📋 Total Policies",fmt:v=>String(v)+" pol"},
+    {id:"life",label:"❤️ Life Policies",fmt:v=>String(v)+" life"},
+    {id:"commercial",label:"🏢 Commercial Policies",fmt:v=>String(v)+" comm"},
+  ];
+  const getVal=(a,m)=>{
+    if(!a)return 0;
+    if(m==="life")return(a.sales||[]).filter(s=>categorizePolicy(s.type)==="life").length;
+    if(m==="commercial")return(a.sales||[]).filter(s=>categorizePolicy(s.type)==="commercial").length;
+    return a[m]||0;
+  };
+  const fromVal=getVal(fromAgent,metric);
+  const toVal=getVal(toAgent,metric);
+  const selectedMetric=metrics.find(m=>m.id===metric);
+  const issue=()=>{
+    onChallenge({id:Date.now(),fromId:fromAgent.id,fromName:fromAgent.name,fromAvatar:fromAgent.avatar,fromColor:fromAgent.color,toId:toAgent.id,toName:toAgent.name,toAvatar:toAgent.avatar,toColor:toAgent.color,metric,metricLabel:selectedMetric.label,issued:new Date().toLocaleDateString()});
+    onClose();
+  };
+  return <Modal onClose={onClose} T={T}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+      <h2 style={{fontSize:18,fontWeight:800}}>⚔️ Issue a Challenge</h2>
+      <button onClick={onClose} style={{background:"none",border:"none",fontSize:24,cursor:"pointer",color:T.textMuted}}>×</button>
+    </div>
+    {/* VS display */}
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:20,marginBottom:20,padding:"16px",background:T.bgSubtle,borderRadius:16}}>
+      <div style={{textAlign:"center"}}>
+        <div style={{fontSize:40}}>{fromAgent.avatar}</div>
+        <div style={{fontSize:13,fontWeight:800,color:fromAgent.color,marginTop:4}}>{fromAgent.name.split(" ")[0]}</div>
+        <div style={{fontSize:11,color:T.textMuted,marginTop:2}}>{selectedMetric&&selectedMetric.fmt(fromVal)}</div>
+      </div>
+      <div style={{fontSize:28,fontWeight:900,color:"#ef4444"}}>VS</div>
+      <div style={{textAlign:"center"}}>
+        <div style={{fontSize:40}}>{toAgent.avatar}</div>
+        <div style={{fontSize:13,fontWeight:800,color:toAgent.color,marginTop:4}}>{toAgent.name.split(" ")[0]}</div>
+        <div style={{fontSize:11,color:T.textMuted,marginTop:2}}>{selectedMetric&&selectedMetric.fmt(toVal)}</div>
+      </div>
+    </div>
+    <div style={{marginBottom:16}}>
+      <div style={{fontSize:12,fontWeight:700,color:T.textSec,marginBottom:8}}>CHALLENGE METRIC — who finishes the period with more?</div>
+      <div style={{display:"flex",flexDirection:"column",gap:6}}>
+        {metrics.map(m=><button key={m.id} onClick={()=>setMetric(m.id)} style={{padding:"12px 16px",borderRadius:12,border:`2px solid ${metric===m.id?"#6366f1":T.border}`,background:metric===m.id?"#6366f108":T.bgCard,color:metric===m.id?"#6366f1":T.textSec,fontSize:13,fontWeight:metric===m.id?700:500,cursor:"pointer",textAlign:"left"}}>{m.label}</button>)}
+      </div>
+    </div>
+    <div style={{padding:"10px 12px",borderRadius:10,background:"#fffbeb",border:"1px solid #fde68a",fontSize:12,color:"#b45309",marginBottom:16}}>
+      📊 Current standings: <strong>{fromAgent.name.split(" ")[0]}</strong> {selectedMetric?.fmt(fromVal)} vs <strong>{toAgent.name.split(" ")[0]}</strong> {selectedMetric?.fmt(toVal)} — {fromVal>toVal?fromAgent.name.split(" ")[0]+" leads!":toVal>fromVal?toAgent.name.split(" ")[0]+" leads!":"Tied!"}
+    </div>
+    <div style={{display:"flex",gap:10}}>
+      <button onClick={onClose} style={{flex:1,padding:12,borderRadius:12,border:`1px solid ${T.border}`,background:T.bgCard,color:T.textSec,fontSize:13,fontWeight:600,cursor:"pointer"}}>Cancel</button>
+      <button onClick={issue} style={{flex:1,padding:12,borderRadius:12,border:"none",background:"linear-gradient(135deg,#6366f1,#db2777)",color:"#fff",fontSize:13,fontWeight:800,cursor:"pointer"}}>⚔️ Issue Challenge!</button>
+    </div>
+  </Modal>;
+}
+
+
+function PasswordPrompt({onSuccess,onClose,T}){const[pw,setPw]=useState("");const[err,setErr]=useState(false);const check=()=>{if(pw===ADMIN_PASSWORD){onSuccess();}else{setErr(true);setPw("");}};return <Modal onClose={onClose} T={T}><div style={{textAlign:"center",padding:"10px 0"}}><div style={{fontSize:40,marginBottom:12}}>🔐</div><h2 style={{fontSize:18,fontWeight:800,marginBottom:6}}>Admin Access</h2><p style={{fontSize:12,color:T.textMuted,marginBottom:20}}>Enter the admin password to continue</p><input type="password" value={pw} onChange={e=>{setPw(e.target.value);setErr(false);}} onKeyDown={e=>e.key==="Enter"&&check()} placeholder="Password" style={{width:"100%",padding:"12px 16px",borderRadius:12,border:`2px solid ${err?"#ef4444":T.border}`,background:T.bgSubtle,color:T.text,fontSize:15,textAlign:"center",marginBottom:8,outline:"none"}} autoFocus/>{err&&<div style={{fontSize:12,color:"#ef4444",marginBottom:10}}>Incorrect password. Try again.</div>}<div style={{display:"flex",gap:10,marginTop:8}}><button onClick={onClose} style={{flex:1,padding:12,borderRadius:12,border:`1px solid ${T.border}`,background:T.bgCard,color:T.textSec,fontSize:13,fontWeight:600,cursor:"pointer"}}>Cancel</button><button onClick={check} style={{flex:1,padding:12,borderRadius:12,border:"none",background:"#6366f1",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>Unlock</button></div></div></Modal>;}
+
+function MessageBoardAdmin({messages,onSave,onClose,T}){const[msgs,setMsgs]=useState(messages||[]);const[newMsg,setNewMsg]=useState({text:"",author:"LaMonte",emoji:"📢",pinned:false});const emojis=["📢","🔥","💪","🏆","⚡","🎯","💰","📈","🌟","🎉","👑","🚀"];const add=()=>{if(!newMsg.text.trim())return;setMsgs([{id:Date.now(),...newMsg,timestamp:new Date().toLocaleDateString()},...msgs]);setNewMsg({text:"",author:"LaMonte",emoji:"📢",pinned:false});};const rm=id=>setMsgs(msgs.filter(m=>m.id!==id));const pin=id=>setMsgs(msgs.map(m=>m.id===id?{...m,pinned:!m.pinned}:m));return <Modal onClose={onClose} T={T}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}><h2 style={{fontSize:18,fontWeight:800}}>📋 Message Board Admin</h2><button onClick={onClose} style={{background:"none",border:"none",fontSize:24,cursor:"pointer",color:T.textMuted}}>×</button></div><div style={{background:T.bgSubtle,borderRadius:14,padding:14,marginBottom:16}}><div style={{fontSize:12,fontWeight:700,marginBottom:8,color:T.textSec}}>NEW MESSAGE</div><div style={{display:"flex",gap:6,marginBottom:8}}>{emojis.map(e=><button key={e} onClick={()=>setNewMsg({...newMsg,emoji:e})} style={{padding:"6px 8px",borderRadius:8,border:`2px solid ${newMsg.emoji===e?"#6366f1":T.border}`,background:newMsg.emoji===e?"#6366f108":T.bgCard,fontSize:16,cursor:"pointer"}}>{e}</button>)}</div><textarea value={newMsg.text} onChange={e=>setNewMsg({...newMsg,text:e.target.value})} placeholder="Type your message..." rows={3} style={{width:"100%",padding:"10px 12px",borderRadius:10,border:`1px solid ${T.border}`,background:T.bgCard,color:T.text,fontSize:13,resize:"none",marginBottom:8}}/><div style={{display:"flex",gap:8,alignItems:"center"}}><input value={newMsg.author} onChange={e=>setNewMsg({...newMsg,author:e.target.value})} placeholder="From" style={{flex:1,padding:"8px 12px",borderRadius:8,border:`1px solid ${T.border}`,background:T.bgCard,color:T.text,fontSize:12}}/><label style={{display:"flex",alignItems:"center",gap:4,fontSize:12,color:T.textSec,cursor:"pointer"}}><input type="checkbox" checked={newMsg.pinned} onChange={e=>setNewMsg({...newMsg,pinned:e.target.checked})} style={{cursor:"pointer"}}/>📌 Pin</label><button onClick={add} style={{padding:"8px 16px",borderRadius:10,border:"none",background:"#6366f1",color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer"}}>+ Post</button></div></div><div style={{maxHeight:300,overflow:"auto"}}>{msgs.length===0&&<div style={{textAlign:"center",padding:"20px 0",color:T.textMuted,fontSize:12}}>No messages yet</div>}{msgs.map(m=><div key={m.id} style={{padding:"10px 12px",borderRadius:10,marginBottom:6,background:m.pinned?"#fffbeb":T.bgSubtle,border:m.pinned?"1px solid #fde68a":`1px solid ${T.borderLight}`,display:"flex",gap:8,alignItems:"flex-start"}}><span style={{fontSize:18}}>{m.emoji}</span><div style={{flex:1}}><div style={{fontSize:12,fontWeight:700,color:T.text}}>{m.text}</div><div style={{fontSize:10,color:T.textMuted}}>— {m.author} · {m.timestamp}</div></div><div style={{display:"flex",gap:4}}><button onClick={()=>pin(m.id)} title="Pin" style={{background:"none",border:"none",cursor:"pointer",fontSize:14,opacity:m.pinned?1:0.4}}>📌</button><button onClick={()=>rm(m.id)} style={{background:"none",border:"none",cursor:"pointer",fontSize:14,color:"#ef4444"}}>🗑️</button></div></div>)}</div><div style={{display:"flex",gap:10,marginTop:16}}><button onClick={onClose} style={{flex:1,padding:12,borderRadius:12,border:`1px solid ${T.border}`,background:T.bgCard,color:T.textSec,fontSize:13,fontWeight:600,cursor:"pointer"}}>Cancel</button><button onClick={()=>{onSave(msgs);onClose();}} style={{flex:1,padding:12,borderRadius:12,border:"none",background:"#059669",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>💾 Save Messages</button></div></Modal>;}
+
+function AdminPanel({agentsCfg,onSave,onClose,T}){const[ed,setEd]=useState(agentsCfg.map(a=>({...a})));const[creating,setCreating]=useState({});const[createMsg,setCreateMsg]=useState({});const colors=["#6366f1","#db2777","#0891b2","#d97706","#059669","#7c3aed","#dc2626","#0d9488","#ea580c","#4f46e5"];const add=()=>setEd([...ed,{id:"a_"+Date.now(),name:"",email:"",avatar:"👨‍💼",color:colors[ed.length%colors.length],gid:"",sheetId:"",sound:"chime",_new:true}]);const rm=i=>setEd(ed.filter((_,j)=>j!==i));const upd=(i,f,v)=>{const n=[...ed];n[i]={...n[i],[f]:v};setEd(n);};const createSheet=async(i)=>{const a=ed[i];if(!a.name.trim()){setCreateMsg({...createMsg,[i]:"⚠️ Enter a name first"});return;}if(!a.email.trim()||!a.email.includes("@")){setCreateMsg({...createMsg,[i]:"⚠️ Enter a valid email first"});return;}if(!SHEET_CREATOR_URL){setCreateMsg({...createMsg,[i]:"⚠️ Set SHEET_CREATOR_URL in config first"});return;}if(creating[i])return;setCreating(c=>({...c,[i]:true}));setCreateMsg(m=>({...m,[i]:"Creating sheet..."}));try{const url=`${SHEET_CREATOR_URL}?action=createSheet&name=${encodeURIComponent(a.name)}&email=${encodeURIComponent(a.email||"")}`;const res=await fetch(url);const data=await res.json();if(data.success){setEd(prev=>{const n=[...prev];n[i]={...n[i],sheetId:data.sheetId,gid:data.gid,_new:false};return n;});setCreateMsg(m=>({...m,[i]:`✅ Sheet created!`}));}else{setCreateMsg(m=>({...m,[i]:`❌ ${data.error||"Error creating sheet"}`}));}}catch(e){setCreateMsg(m=>({...m,[i]:`❌ Could not connect.`}));}setCreating(c=>({...c,[i]:false}));};const handleBlur=(i)=>{const a=ed[i];if(a._new&&!a.sheetId&&a.name.trim()&&a.email.trim()&&a.email.includes("@")&&SHEET_CREATOR_URL&&!creating[i]){createSheet(i);}};
+return <Modal onClose={onClose} T={T}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}><h2 style={{fontSize:18,fontWeight:800}}>🔐 Admin — Manage Producers</h2><button onClick={onClose} style={{background:"none",border:"none",fontSize:24,cursor:"pointer",color:T.textMuted}}>×</button></div>{ed.map((a,i)=><div key={i} style={{padding:14,borderRadius:14,marginBottom:10,background:a._new?"#f0fdf4":T.bgSubtle,border:`1px solid ${a._new?"#bbf7d0":T.borderLight}`}}>{a._new&&<div style={{fontSize:10,fontWeight:700,color:"#059669",marginBottom:8,textTransform:"uppercase",letterSpacing:1}}>✨ New Producer</div>}<div style={{display:"flex",gap:8,marginBottom:8,alignItems:"center"}}><input value={a.name} onChange={e=>upd(i,"name",e.target.value)} onBlur={()=>handleBlur(i)} placeholder="Producer Name" style={{flex:1,padding:"8px 12px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:13,background:T.bgCard,color:T.text}}/><select value={a.avatar} onChange={e=>upd(i,"avatar",e.target.value)} style={{padding:"8px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:18,background:T.bgCard}}>{AVATAR_OPTIONS.map(av=><option key={av} value={av}>{av}</option>)}</select><input type="color" value={a.color} onChange={e=>upd(i,"color",e.target.value)} style={{width:36,height:36,border:"none",borderRadius:8,cursor:"pointer"}}/><button onClick={()=>rm(i)} style={{background:"#fee2e2",border:"none",borderRadius:8,padding:"8px 10px",cursor:"pointer",color:"#dc2626",fontWeight:700}}>🗑️</button></div>{a._new&&<div style={{marginBottom:8}}><input value={a.email||""} onChange={e=>upd(i,"email",e.target.value)} onBlur={()=>handleBlur(i)} placeholder="Producer Email" style={{width:"100%",padding:"7px 12px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:12,background:T.bgCard,color:T.text}}/></div>}{a._new&&<div style={{marginBottom:8}}>{creating[i]&&<div style={{padding:"10px 14px",borderRadius:10,background:"#f0fdf4",border:"1px solid #bbf7d0",fontSize:12,color:"#059669",fontWeight:600,display:"flex",alignItems:"center",gap:8}}><span style={{animation:"spin 1s linear infinite",display:"inline-block"}}>⏳</span>Creating Google Sheet...</div>}{!creating[i]&&!a.sheetId&&<button onClick={()=>createSheet(i)} style={{width:"100%",padding:"10px",borderRadius:10,border:"none",background:"#059669",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>🚀 Create Google Sheet</button>}{createMsg[i]&&<div style={{fontSize:11,marginTop:5,color:createMsg[i].startsWith("✅")?"#059669":"#dc2626",fontWeight:600}}>{createMsg[i]}</div>}</div>}{a.sheetId&&<div style={{marginBottom:6,padding:"6px 10px",background:"#dcfce7",borderRadius:8,fontSize:11,color:"#059669",fontWeight:600}}>✅ Sheet linked</div>}<div style={{display:"flex",gap:8,flexWrap:"wrap"}}><input value={a.gid||""} onChange={e=>upd(i,"gid",e.target.value)} placeholder="GID" style={{flex:1,minWidth:80,padding:"6px 10px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:11,background:T.bgCard,color:T.text}}/><input value={a.sheetId||""} onChange={e=>upd(i,"sheetId",e.target.value)} placeholder="Sheet ID" style={{flex:3,minWidth:150,padding:"6px 10px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:11,background:T.bgCard,color:T.text}}/><select value={a.sound||"chime"} onChange={e=>upd(i,"sound",e.target.value)} style={{padding:"6px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:12,background:T.bgCard,color:T.text}}>{SOUND_OPTIONS.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select><button onClick={()=>playSound(a.sound)} style={{padding:"6px 8px",borderRadius:8,border:`1px solid ${T.border}`,background:T.bgCard,cursor:"pointer",fontSize:12}}>▶️</button></div><div style={{marginTop:8,padding:"10px 12px",background:T.bgSubtle,borderRadius:10,border:`1px solid ${T.borderLight}`}}><div style={{fontSize:10,fontWeight:700,color:T.textSec,marginBottom:8}}>🎯 PRODUCER GOALS</div><div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:6}}>{[{f:"premium",label:"Premium $",ph:"25000"},{f:"policies",label:"Policies",ph:"20"},{f:"personalLines",label:"PL Policies",ph:"15"},{f:"life",label:"Life Pol.",ph:"3"},{f:"commercial",label:"Comm. Pol.",ph:"2"}].map(({f,label,ph})=><div key={f}><div style={{fontSize:9,color:T.textMuted,marginBottom:2}}>{label}</div><input type="number" value={(a.goals||{})[f]||""} onChange={e=>{const g={...(a.goals||{}),[f]:Number(e.target.value)};upd(i,"goals",g);}} placeholder={ph} style={{width:"100%",padding:"5px 7px",borderRadius:7,border:`1px solid ${T.border}`,fontSize:11,background:T.bgCard,color:T.text}}/></div>)}</div></div></div>)}<button onClick={add} style={{width:"100%",padding:12,borderRadius:12,border:`2px dashed #059669`,background:"#f0fdf4",color:"#059669",fontSize:13,fontWeight:700,cursor:"pointer",marginBottom:16}}>+ Add New Producer</button><div style={{display:"flex",gap:10}}><button onClick={onClose} style={{flex:1,padding:12,borderRadius:12,border:`1px solid ${T.border}`,background:T.bgCard,color:T.textSec,fontSize:13,fontWeight:600,cursor:"pointer"}}>Cancel</button><button onClick={()=>{onSave(ed.filter(a=>a.name&&(a.gid||a.sheetId)));onClose();}} style={{flex:1,padding:12,borderRadius:12,border:"none",background:"#6366f1",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>💾 Save All</button></div></Modal>;}
+
+function PeriodSettings({periods,onSave,onClose,T}){const[ed,setEd]=useState(periods.map(p=>({...p})));const add=()=>setEd([...ed,{name:"",start:"",end:""}]);const rm=i=>setEd(ed.filter((_,j)=>j!==i));const upd=(i,f,v)=>{const n=[...ed];n[i]={...n[i],[f]:v};setEd(n);};return <Modal onClose={onClose} T={T}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}><h2 style={{fontSize:18,fontWeight:800}}>📅 Contest Periods</h2><button onClick={onClose} style={{background:"none",border:"none",fontSize:24,cursor:"pointer",color:T.textMuted}}>×</button></div>{ed.map((p,i)=>{const isCur=(()=>{const t=new Date();t.setHours(0,0,0,0);if(!p.start||!p.end)return false;return t>=new Date(p.start+"T00:00:00")&&t<=new Date(p.end+"T23:59:59");})();return <div key={i} style={{padding:14,borderRadius:14,marginBottom:10,background:isCur?"#f0fdf4":T.bgSubtle,border:isCur?"1px solid #bbf7d0":`1px solid ${T.borderLight}`,position:"relative"}}>{isCur&&<div style={{position:"absolute",top:8,right:12,fontSize:9,background:"#059669",color:"#fff",padding:"2px 8px",borderRadius:6,fontWeight:700}}>CURRENT</div>}<div style={{display:"flex",gap:8,marginBottom:8,alignItems:"center"}}><input value={p.name} onChange={e=>upd(i,"name",e.target.value)} placeholder="Period Name" style={{flex:1,padding:"8px 12px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:13,fontWeight:600,background:T.bgCard,color:T.text}}/><button onClick={()=>rm(i)} style={{background:"#fee2e2",border:"none",borderRadius:8,padding:"8px 10px",cursor:"pointer",color:"#dc2626"}}>🗑️</button></div><div style={{display:"flex",gap:8,alignItems:"center"}}><div style={{flex:1}}><div style={{fontSize:10,color:T.textMuted,marginBottom:3}}>START</div><input type="date" value={p.start} onChange={e=>upd(i,"start",e.target.value)} style={{width:"100%",padding:"6px 10px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:13,background:T.bgCard,color:T.text}}/></div><span style={{marginTop:16,color:T.textMuted}}>→</span><div style={{flex:1}}><div style={{fontSize:10,color:T.textMuted,marginBottom:3}}>END</div><input type="date" value={p.end} onChange={e=>upd(i,"end",e.target.value)} style={{width:"100%",padding:"6px 10px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:13,background:T.bgCard,color:T.text}}/></div></div></div>;})} <button onClick={add} style={{width:"100%",padding:12,borderRadius:12,border:`2px dashed ${T.border}`,background:"transparent",color:T.textSec,fontSize:13,fontWeight:600,cursor:"pointer",marginBottom:16}}>+ Add Period</button><div style={{display:"flex",gap:10}}><button onClick={onClose} style={{flex:1,padding:12,borderRadius:12,border:`1px solid ${T.border}`,background:T.bgCard,color:T.textSec,fontSize:13,fontWeight:600,cursor:"pointer"}}>Cancel</button><button onClick={()=>{onSave(ed.filter(p=>p.name&&p.start&&p.end));onClose();}} style={{flex:1,padding:12,borderRadius:12,border:"none",background:"#6366f1",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>💾 Save Periods</button></div></Modal>;}
+
+function AvatarPicker({current,onSelect,onClose,T}){return <Modal onClose={onClose} T={T}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}><h2 style={{fontSize:18,fontWeight:800}}>Choose Your Avatar</h2><button onClick={onClose} style={{background:"none",border:"none",fontSize:24,cursor:"pointer",color:T.textMuted}}>×</button></div><div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:10}}>{AVATAR_OPTIONS.map(av=><button key={av} onClick={()=>{onSelect(av);onClose();}} style={{padding:16,borderRadius:14,border:av===current?`3px solid #6366f1`:`1px solid ${T.border}`,background:av===current?`#6366f108`:T.bgSubtle,fontSize:32,cursor:"pointer",textAlign:"center"}}>{av}</button>)}</div></Modal>;}
+
+function SoundPicker({current,onSelect,onClose,T}){const[previewing,setPreviewing]=useState(null);const timerRef=useRef(null);const preview=(id,e)=>{e.stopPropagation();e.preventDefault();if(timerRef.current)clearTimeout(timerRef.current);stopAllAudio();setPreviewing(id);playSound(id);timerRef.current=setTimeout(()=>setPreviewing(null),3000);};return <Modal onClose={onClose} T={T}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}><h2 style={{fontSize:18,fontWeight:800}}>🔊 Choose Your Victory Sound</h2><button onClick={onClose} style={{background:"none",border:"none",fontSize:24,cursor:"pointer",color:T.textMuted}}>×</button></div><div style={{display:"flex",flexDirection:"column",gap:8}}>{SOUND_OPTIONS.map(s=>{const isCur=s.id===current,isPrev=previewing===s.id;return <div key={s.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",borderRadius:12,background:isCur?`#6366f108`:T.bgSubtle,border:isCur?`2px solid #6366f1`:`1px solid ${T.borderLight}`}}><span style={{fontSize:20,minWidth:28}}>{s.name.split(" ")[0]}</span><div style={{flex:1,cursor:"pointer"}} onClick={()=>{onSelect(s.id);onClose();}}><div style={{fontSize:13,fontWeight:isCur?700:500,color:isCur?"#6366f1":T.text}}>{s.name}</div></div><button onClick={(e)=>preview(s.id,e)} style={{padding:"6px 12px",borderRadius:8,border:`1px solid ${T.border}`,background:isPrev?"#6366f1":T.bgCard,color:isPrev?"#fff":T.textSec,fontSize:11,cursor:"pointer",fontWeight:600,minWidth:64}}>{isPrev?"🔊 ...":"▶️ Play"}</button><button onClick={()=>{onSelect(s.id);onClose();}} style={{padding:"6px 10px",borderRadius:8,border:"none",background:isCur?"#6366f1":"#e0e7ff",color:isCur?"#fff":"#6366f1",fontSize:11,cursor:"pointer",fontWeight:700}}>{isCur?"✓ Set":"Use"}</button></div>;})} </div><div style={{marginTop:14,padding:"10px 14px",background:T.bgSubtle,borderRadius:10,fontSize:11,color:T.textMuted}}>🎵 Click ▶️ Play to preview · Click Use to select</div></Modal>;}
+
+function RaceTrack({agents,field,maxVal,icon,title,T}){
+  const sorted=[...agents].sort((a,b)=>(b[field]||0)-(a[field]||0));
+  return(
+    <div style={{background:T.bgCard,borderRadius:16,padding:20,border:`1px solid ${T.border}`,marginBottom:16,boxShadow:T.shadow}}>
+      <div style={{fontSize:15,fontWeight:700,marginBottom:14}}>{title}</div>
+      {sorted.map((a,i)=>{
+        const val=a[field]||0;
+        const pct=maxVal>0?Math.min((val/maxVal)*100,100):0;
+        const barPct=Math.max(pct,3);
+        return(
+          <div key={a.id} style={{marginBottom:20}}>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:4,color:T.textSec}}>
+              <span style={{fontWeight:700,color:a.color}}>{a.avatar} {a.name.split(" ")[0]}{i===0&&val>0?" 👑 LEADER":""}</span>
+              <span style={{fontWeight:800,fontSize:13}}>{field==="totalRevenue"?fmtPrice(val):val+" policies"}</span>
+            </div>
+            {/* outer wrapper — overflow VISIBLE so icon clears above bar */}
+            <div style={{position:"relative",height:68,paddingTop:10}}>
+              {/* horse/car floats well above the bar */}
+              <div style={{
+                position:"absolute",
+                left:`${barPct}%`,
+                top:0,
+                transform:"translateX(-50%)",
+                fontSize:30,
+                lineHeight:1,
+                animation:field==="totalRevenue"?"raceMove 0.6s infinite":"gallop 0.45s infinite",
+                zIndex:3,
+                filter:"drop-shadow(0 3px 5px rgba(0,0,0,0.22))",
+                pointerEvents:"none",
+                whiteSpace:"nowrap",
+                display:"block",
+              }}>
+                {icon}
+              </div>
+              {/* track bar sits at bottom — overflow hidden only for fill */}
+              <div style={{position:"absolute",bottom:0,left:0,right:0,height:24,background:T.bgSubtle,borderRadius:12,overflow:"hidden"}}>
+                <div style={{width:`${barPct}%`,height:"100%",background:`linear-gradient(90deg,${a.color}55,${a.color})`,borderRadius:12,transition:"width 1.5s"}}/>
+              </div>
+              {/* % label on bar */}
+              {pct>5&&<div style={{position:"absolute",bottom:6,left:`${Math.min(barPct-1,88)}%`,transform:"translateX(-50%)",fontSize:9,fontWeight:800,color:"#fff",pointerEvents:"none"}}>{pct.toFixed(0)}%</div>}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* notification chime — plays when board gets new messages */
+function playNotifChime(){try{const ctx=new(window.AudioContext||window.webkitAudioContext)();[[523,0],[659,0.18],[784,0.36],[1047,0.54]].forEach(([f,t])=>{const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.type="sine";o.frequency.value=f;g.gain.setValueAtTime(0,ctx.currentTime+t);g.gain.linearRampToValueAtTime(0.18,ctx.currentTime+t+0.05);g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+t+0.5);o.start(ctx.currentTime+t);o.stop(ctx.currentTime+t+0.55);});}catch(e){}}
+
+function MessageBoard({messages,onExternalUpdate,T}){
+  const[collapsed,setCollapsed]=useState(false);
+  const[flash,setFlash]=useState(false);
+  const prevCount=useRef(messages.length);
+  /* poll Apps Script every 30s for shared messages */
+  useEffect(()=>{
+    const poll=async()=>{
+      try{
+        const r=await fetch(`${PROXY_URL}?action=getMessages`,{redirect:"follow"});
+        if(!r.ok)return;
+        const txt=await r.text();
+        if(!txt||txt.startsWith("<!"))return;
+        const d=JSON.parse(txt);
+        if(d.success&&Array.isArray(d.messages)&&onExternalUpdate){
+          onExternalUpdate(d.messages);
+        }
+      }catch(e){}
+    };
+    poll();
+    const id=setInterval(poll,30000);
+    return()=>clearInterval(id);
+  },[]);
+  /* flash+sound when count increases */
+  useEffect(()=>{
+    if(messages.length>prevCount.current){
+      setFlash(true);
+      try{playNotifChime();}catch(e){}
+      setTimeout(()=>setFlash(false),3000);
+    }
+    prevCount.current=messages.length;
+  },[messages.length]);
+
+  if(messages.length===0)return null;
+  const pinned=messages.filter(m=>m.pinned);
+  const regular=messages.filter(m=>!m.pinned);
+  const sorted=[...pinned,...regular];
+  return(
+    <div style={{borderRadius:16,border:flash?`2px solid #3b82f6`:`1px solid #bfdbfe`,marginBottom:14,overflow:"hidden",boxShadow:flash?"0 0 18px #3b82f644":T.shadow,background:flash?"#dbeafe":"#eff6ff",transition:"all 0.4s"}}>
+      <div onClick={()=>setCollapsed(!collapsed)} style={{display:"flex",alignItems:"center",gap:8,padding:"12px 18px",cursor:"pointer",borderBottom:collapsed?"none":"1px solid #bfdbfe",background:"#dbeafe"}}>
+        <span style={{fontSize:16}}>📋</span>
+        <span style={{fontSize:14,fontWeight:700,flex:1,color:"#1e40af"}}>Team Message Board</span>
+        {flash&&<span style={{fontSize:9,background:"#3b82f6",color:"#fff",padding:"2px 8px",borderRadius:6,fontWeight:800,animation:"pulse 0.6s infinite"}}>🔔 NEW</span>}
+        <span style={{fontSize:12,color:"#3b82f6",background:"#bfdbfe",padding:"2px 8px",borderRadius:10,fontWeight:700}}>{messages.length}</span>
+        <span style={{fontSize:12,color:"#3b82f6"}}>{collapsed?"▼":"▲"}</span>
+      </div>
+      {!collapsed&&<div style={{padding:"12px 16px",maxHeight:280,overflow:"auto"}}>
+        {sorted.map(m=>(
+          <div key={m.id} style={{padding:"14px 18px",borderRadius:12,marginBottom:8,background:m.pinned?"#fefce8":"#fff",border:m.pinned?"1px solid #fde68a":"1px solid #bfdbfe",textAlign:"center",boxShadow:"0 1px 4px rgba(59,130,246,0.08)"}}>
+            {m.pinned&&<div style={{marginBottom:6}}><span style={{fontSize:8,background:"#f59e0b",color:"#fff",padding:"2px 10px",borderRadius:4,fontWeight:700}}>📌 PINNED</span></div>}
+            <div style={{fontSize:28,marginBottom:6}}>{m.emoji}</div>
+            <div style={{fontSize:14,fontWeight:700,color:"#1e3a5f",lineHeight:1.55,marginBottom:6}}>{m.text}</div>
+            <div style={{fontSize:11,color:"#3b82f6"}}>— {m.author} · {m.timestamp}</div>
+          </div>
+        ))}
+      </div>}
+    </div>
+  );
+}
+
+/* ===== VISION BOARD ===== */
+function VisionBoard({agent,onClose,T}){
+  const key=`yd_vision_${agent.id}`;
+  const[board,setBoard]=useState(()=>loadLS(key,{goal:"",affirmations:[],milestones:[],theme:"#6366f1"}));
+  const[newAff,setNewAff]=useState("");
+  const[newMile,setNewMile]=useState("");
+  const save=(updated)=>{setBoard(updated);saveLS(key,updated);};
+  const THEMES=["#6366f1","#db2777","#059669","#d97706","#0891b2","#7c3aed","#ef4444","#1a3c6e"];
+  const VISION_EMOJIS=["🏆","💰","🏠","🚗","✈️","🎓","👨‍👩‍👧‍👦","💎","🌟","🏖️","🎯","🚀","💪","🙏","❤️","🔑","⚡","🌈","🎉","👑"];
+  return(
+    <Modal onClose={onClose} T={T}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <span style={{fontSize:28}}>{agent.avatar}</span>
+          <div>
+            <h2 style={{fontSize:18,fontWeight:800,color:board.theme}}>{agent.name.split(" ")[0]}'s Vision Board</h2>
+            <div style={{fontSize:11,color:T.textMuted}}>Private — only visible on this device</div>
+          </div>
+        </div>
+        <button onClick={onClose} style={{background:"none",border:"none",fontSize:24,cursor:"pointer",color:T.textMuted}}>×</button>
+      </div>
+      {/* Theme color */}
+      <div style={{marginBottom:14}}>
+        <div style={{fontSize:11,fontWeight:700,color:T.textSec,marginBottom:6}}>THEME COLOR</div>
+        <div style={{display:"flex",gap:6}}>
+          {THEMES.map(c=><button key={c} onClick={()=>save({...board,theme:c})} style={{width:28,height:28,borderRadius:"50%",background:c,border:board.theme===c?"3px solid #fff":"2px solid transparent",outline:board.theme===c?`2px solid ${c}`:"none",cursor:"pointer"}}/>)}
+        </div>
+      </div>
+      {/* Big goal */}
+      <div style={{marginBottom:14,padding:"14px 16px",borderRadius:14,background:`${board.theme}08`,border:`1px solid ${board.theme}33`}}>
+        <div style={{fontSize:11,fontWeight:700,color:board.theme,marginBottom:6,letterSpacing:1}}>🎯 MY BIG GOAL THIS PERIOD</div>
+        <textarea value={board.goal} onChange={e=>save({...board,goal:e.target.value})} placeholder="Write your #1 goal here… be specific and bold!" rows={2} style={{width:"100%",padding:"10px 12px",borderRadius:10,border:`1px solid ${board.theme}44`,background:"transparent",color:T.text,fontSize:14,fontWeight:600,resize:"none",outline:"none",fontFamily:"inherit"}}/>
+      </div>
+      {/* Affirmations */}
+      <div style={{marginBottom:14}}>
+        <div style={{fontSize:11,fontWeight:700,color:T.textSec,marginBottom:8}}>💬 AFFIRMATIONS & MANTRAS</div>
+        <div style={{display:"flex",gap:6,marginBottom:8}}>
+          <input value={newAff} onChange={e=>setNewAff(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&newAff.trim()){save({...board,affirmations:[...board.affirmations,newAff.trim()]});setNewAff("");}}} placeholder="I am… I have… I will…" style={{flex:1,padding:"8px 12px",borderRadius:10,border:`1px solid ${T.border}`,background:T.bgSubtle,color:T.text,fontSize:13}}/>
+          <button onClick={()=>{if(newAff.trim()){save({...board,affirmations:[...board.affirmations,newAff.trim()]});setNewAff("");}}} style={{padding:"8px 14px",borderRadius:10,border:"none",background:board.theme,color:"#fff",fontWeight:700,cursor:"pointer"}}>+</button>
+        </div>
+        {board.affirmations.map((a,i)=>(
+          <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",borderRadius:10,marginBottom:5,background:T.bgSubtle,border:`1px solid ${T.borderLight}`}}>
+            <span style={{fontSize:16}}>✨</span>
+            <span style={{flex:1,fontSize:13,color:T.text,fontStyle:"italic"}}>"{a}"</span>
+            <button onClick={()=>save({...board,affirmations:board.affirmations.filter((_,j)=>j!==i)})} style={{background:"none",border:"none",color:"#ef4444",cursor:"pointer",fontSize:14}}>✕</button>
+          </div>
+        ))}
+      </div>
+      {/* Milestones */}
+      <div style={{marginBottom:14}}>
+        <div style={{fontSize:11,fontWeight:700,color:T.textSec,marginBottom:8}}>🏁 MILESTONES & DREAMS</div>
+        <div style={{display:"flex",gap:6,marginBottom:8}}>
+          <select style={{padding:"8px",borderRadius:10,border:`1px solid ${T.border}`,background:T.bgSubtle,fontSize:16}} id="visionEmoji">
+            {VISION_EMOJIS.map(e=><option key={e} value={e}>{e}</option>)}
+          </select>
+          <input value={newMile} onChange={e=>setNewMile(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&newMile.trim()){const em=document.getElementById("visionEmoji").value;save({...board,milestones:[...board.milestones,{text:newMile.trim(),emoji:em,done:false}]});setNewMile("");}}} placeholder="Dream car, vacation, income goal…" style={{flex:1,padding:"8px 12px",borderRadius:10,border:`1px solid ${T.border}`,background:T.bgSubtle,color:T.text,fontSize:13}}/>
+          <button onClick={()=>{if(newMile.trim()){const em=document.getElementById("visionEmoji").value;save({...board,milestones:[...board.milestones,{text:newMile.trim(),emoji:em,done:false}]});setNewMile("");}}} style={{padding:"8px 14px",borderRadius:10,border:"none",background:board.theme,color:"#fff",fontWeight:700,cursor:"pointer"}}>+</button>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:6}}>
+          {board.milestones.map((m,i)=>(
+            <div key={i} onClick={()=>save({...board,milestones:board.milestones.map((x,j)=>j===i?{...x,done:!x.done}:x)})} style={{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",borderRadius:12,background:m.done?`${board.theme}12`:T.bgSubtle,border:`1px solid ${m.done?board.theme+"44":T.borderLight}`,cursor:"pointer",position:"relative"}}>
+              <span style={{fontSize:20,filter:m.done?"none":"grayscale(0.3)"}}>{m.emoji}</span>
+              <span style={{fontSize:12,fontWeight:600,color:m.done?board.theme:T.textSec,textDecoration:m.done?"line-through":"none",flex:1}}>{m.text}</span>
+              {m.done&&<span style={{fontSize:10}}>✅</span>}
+              <button onClick={e=>{e.stopPropagation();save({...board,milestones:board.milestones.filter((_,j)=>j!==i)});}} style={{position:"absolute",top:4,right:4,background:"none",border:"none",color:"#ef4444",cursor:"pointer",fontSize:11}}>✕</button>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div style={{padding:"10px 14px",borderRadius:10,background:T.bgSubtle,fontSize:11,color:T.textMuted,textAlign:"center"}}>
+        🔒 Your vision board is private — stored only on this device. Check off milestones as you achieve them!
+      </div>
+    </Modal>
+  );
+}
+
+function DailyMotivation({T}){const QUOTES=[{q:"Every no gets you closer to the yes. Keep dialing.",a:"Insurance Wisdom"},{q:"Your premium today is someone's peace of mind tomorrow.",a:"YDI Culture"},{q:"Don't sell insurance. Solve problems. The premium follows.",a:"LaMonte Douglas"},{q:"Every policy bound is a family protected. That's the mission.",a:"YDI Culture"},{q:"Top producers don't wait for leads. They create them.",a:"Agency Wisdom"},{q:"Bind it, protect it, move on. Then do it again.",a:"YDI Culture"},{q:"Champions aren't born in the comfort zone. Make the call.",a:"LaMonte Douglas"},{q:"Discipline beats motivation every single day.",a:"YDI Culture"},{q:"A rising tide lifts all boats. Be the tide.",a:"YDI Battle Royale"},{q:"Work like someone is trying to take your spot. They are.",a:"YDI Battle Royale"},{q:"What you think about, you bring about.",a:"Bob Proctor"},{q:"The fortune is in the follow-up. It always has been.",a:"Jim Rohn"},{q:"You miss 100 percent of the shots you never take.",a:"Wayne Gretzky"},{q:"Confidence isn't arrogance. It's preparation showing up on time.",a:"LaMonte Douglas"},{q:"Life insurance is love made tangible.",a:"Industry Truth"},{q:"The Inland Empire needs protection. You're the one providing it.",a:"LaMonte Douglas"},{q:"Your best month is still ahead of you.",a:"YDI Battle Royale"},{q:"Make the call. Send the quote. Follow up. Repeat.",a:"YDI Culture"},{q:"Success is rented, not owned. The rent is due every day.",a:"Rory Vaden"},{q:"The best revenge is massive success.",a:"Frank Sinatra"}];const today=new Date();const idx=(today.getFullYear()*365+today.getMonth()*31+today.getDate())%QUOTES.length;const q=QUOTES[idx];return <div style={{background:`linear-gradient(135deg, #1a3c6e, #2563eb)`,borderRadius:16,padding:"22px 28px",marginBottom:14,position:"relative",overflow:"hidden",textAlign:"center"}}><div style={{position:"absolute",top:-20,right:-20,fontSize:80,opacity:0.08,transform:"rotate(15deg)"}}>💬</div><div style={{position:"absolute",top:-20,left:-20,fontSize:80,opacity:0.06,transform:"rotate(-10deg)"}}>💬</div><div style={{fontSize:10,fontWeight:700,color:"#93c5fd",letterSpacing:3,textTransform:"uppercase",marginBottom:10}}>✦ Daily Motivation ✦</div><div style={{fontSize:17,fontWeight:700,color:"#ffffff",lineHeight:1.65,marginBottom:10,fontStyle:"italic"}}>" {q.q} "</div><div style={{fontSize:12,color:"#93c5fd",fontWeight:600,letterSpacing:1}}>— {q.a}</div></div>;}
+
+function PolicyBreakdown({breakdown,totalPolicies,totalRevenue,color,T}){const cats=[{key:"personal",label:"Personal Lines",icon:"🏠",color:"#6366f1"},{key:"life",label:"Life",icon:"❤️",color:"#db2777"},{key:"commercial",label:"Commercial",icon:"🏢",color:"#059669"}];return <div style={{background:T.bgCard,borderRadius:16,padding:18,border:`1px solid ${T.border}`,marginBottom:14,boxShadow:T.shadow}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}><div style={{fontSize:15,fontWeight:700}}>📋 Policy Breakdown</div><div style={{fontSize:13,color:T.textMuted}}>{totalPolicies} total · {fmtShort(totalRevenue)}</div></div><div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14}}>{cats.map(c=>{const d=breakdown[c.key];return <div key={c.key} style={{padding:"14px 10px",borderRadius:14,textAlign:"center",background:`${c.color}08`,border:`1px solid ${c.color}22`}}><div style={{fontSize:24,marginBottom:5}}>{c.icon}</div><div style={{fontSize:10,color:T.textMuted,textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>{c.label}</div><div style={{fontSize:22,fontWeight:900,color:c.color}}>{d.count}</div><div style={{fontSize:11,color:T.textMuted,fontWeight:600}}>{fmtShort(d.premium)}</div></div>;})} </div>{cats.map((c,i)=>{const d=breakdown[c.key];return <div key={c.key} style={{marginBottom:i<cats.length-1?10:0}}><div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:4}}><span style={{color:T.textSec}}>{c.icon} {c.label}</span><span style={{color:c.color,fontWeight:700}}>{totalPolicies>0?Math.round((d.count/totalPolicies)*100):0}%</span></div><MiniBar value={d.count} max={totalPolicies||1} color={c.color} height={6} T={T}/></div>;})} </div>;}
+
+
+/* ===== KPI TRENDS COMPONENT ===== */
+function KPITrends({agents,selAgent,periods,selPeriodIdx,T}){
+  const[trendTab,setTrendTab]=useState("weekly");
+  const[hoverInfo,setHoverInfo]=useState(null); // {chartKey,idx,x,y,val}
+  const agent=agents.find(a=>a.id===selAgent)||agents[0];
+  const allSales=agent?.allSales||agent?.sales||[];
+
+  function getWeeklyBuckets(sales,n=8){
+    const now=new Date();now.setHours(23,59,59,999);
+    const buckets=[];
+    for(let w=n-1;w>=0;w--){
+      const end=new Date(now);end.setDate(end.getDate()-(w*7));
+      const start=new Date(end);start.setDate(start.getDate()-6);start.setHours(0,0,0,0);
+      const ws=sales.filter(s=>s.boundDateObj&&s.boundDateObj>=start&&s.boundDateObj<=end);
+      buckets.push({label:`${start.getMonth()+1}/${start.getDate()}`,premium:ws.reduce((s,x)=>s+x.price,0),policies:ws.length,life:ws.filter(s=>categorizePolicy(s.type)==="life").length,commercial:ws.filter(s=>categorizePolicy(s.type)==="commercial").length,personal:ws.filter(s=>categorizePolicy(s.type)==="personal").length});
+    }
+    return buckets;
+  }
+  function getPeriodBuckets(sales){
+    const src=sales||allSales;
+    return periods.map(p=>{
+      const ps=new Date(p.start+"T00:00:00"),pe=new Date(p.end+"T23:59:59");
+      const ps2=src.filter(s=>s.boundDateObj&&s.boundDateObj>=ps&&s.boundDateObj<=pe);
+      return{label:p.name.split("-")[0],premium:ps2.reduce((s,x)=>s+x.price,0),policies:ps2.length,life:ps2.filter(s=>categorizePolicy(s.type)==="life").length,commercial:ps2.filter(s=>categorizePolicy(s.type)==="commercial").length,personal:ps2.filter(s=>categorizePolicy(s.type)==="personal").length};
+    }).filter(b=>b.premium>0||b.policies>0);
+  }
+  function getDailyBuckets(sales,n=28){
+    const src=sales||allSales;const now=new Date();now.setHours(23,59,59,999);
+    const buckets=[];
+    for(let d=n-1;d>=0;d--){
+      const day=new Date(now);day.setDate(day.getDate()-d);
+      const ds=new Date(day);ds.setHours(0,0,0,0);const de=new Date(day);de.setHours(23,59,59,999);
+      const dSales=src.filter(s=>s.boundDateObj&&s.boundDateObj>=ds&&s.boundDateObj<=de);
+      buckets.push({label:`${day.getMonth()+1}/${day.getDate()}`,premium:dSales.reduce((s,x)=>s+x.price,0),policies:dSales.length,life:dSales.filter(s=>categorizePolicy(s.type)==="life").length,commercial:dSales.filter(s=>categorizePolicy(s.type)==="commercial").length,personal:dSales.filter(s=>categorizePolicy(s.type)==="personal").length});
+    }
+    return buckets;
+  }
+
+  const getBuckets=(sales)=>trendTab==="weekly"?getWeeklyBuckets(sales||allSales,8):trendTab==="period"?getPeriodBuckets(sales):getDailyBuckets(sales,28);
+  const buckets=getBuckets(allSales);
+
+  function trend(bkts,field){
+    if(bkts.length<2)return{dir:"→",pct:0,color:T.textMuted};
+    const cur=bkts[bkts.length-1][field],prev=bkts[bkts.length-2][field];
+    if(prev===0)return cur>0?{dir:"↑",pct:100,color:"#059669"}:{dir:"→",pct:0,color:T.textMuted};
+    const p=((cur-prev)/prev)*100;
+    return p>0?{dir:"↑",pct:Math.abs(p).toFixed(0),color:"#059669"}:p<0?{dir:"↓",pct:Math.abs(p).toFixed(0),color:"#ef4444"}:{dir:"→",pct:0,color:T.textMuted};
+  }
+
+  const totPremium=buckets.reduce((s,b)=>s+b.premium,0);
+  const totPolicies=buckets.reduce((s,b)=>s+b.policies,0);
+  const totLife=buckets.reduce((s,b)=>s+b.life,0);
+  const totComm=buckets.reduce((s,b)=>s+b.commercial,0);
+  const totPL=buckets.reduce((s,b)=>s+b.personal,0);
+
+  const kpis=[
+    {key:"premium",label:"Premium",icon:"💰",color:"#f59e0b",total:fmtShort(totPremium),trend:trend(buckets,"premium"),fmt:fmtShort},
+    {key:"policies",label:"Policies",icon:"📋",color:agent?.color||"#6366f1",total:totPolicies,trend:trend(buckets,"policies")},
+    {key:"life",label:"Life",icon:"❤️",color:"#db2777",total:totLife,trend:trend(buckets,"life")},
+    {key:"commercial",label:"Commercial",icon:"🏢",color:"#059669",total:totComm,trend:trend(buckets,"commercial")},
+    {key:"personal",label:"Pers. Lines",icon:"🏠",color:"#6366f1",total:totPL,trend:trend(buckets,"personal")},
+  ];
+
+  /* ── SVG Line Chart ── */
+  function LineChart({data,field,color,chartKey,fmt,height=140}){
+    const PL=40,PR=14,PT=16,PB=28; // padding left/right/top/bottom
+    const W=500,H=height;
+    const vals=data.map(d=>d[field]);
+    const maxV=Math.max(...vals,1);
+    const minV=0;
+    const xScale=(i)=>PL+(i/(Math.max(data.length-1,1)))*(W-PL-PR);
+    const yScale=(v)=>PT+(1-(v-minV)/(maxV-minV||1))*(H-PT-PB);
+    // smooth bezier path
+    const pts=data.map((d,i)=>({x:xScale(i),y:yScale(d[field])}));
+    let pathD="";
+    if(pts.length>1){
+      pathD=`M${pts[0].x},${pts[0].y}`;
+      for(let i=1;i<pts.length;i++){
+        const cp1x=pts[i-1].x+(pts[i].x-pts[i-1].x)*0.4;
+        const cp1y=pts[i-1].y;
+        const cp2x=pts[i].x-(pts[i].x-pts[i-1].x)*0.4;
+        const cp2y=pts[i].y;
+        pathD+=` C${cp1x},${cp1y} ${cp2x},${cp2y} ${pts[i].x},${pts[i].y}`;
+      }
+    }
+    const areaD=pathD+` L${pts[pts.length-1].x},${H-PB} L${pts[0].x},${H-PB} Z`;
+    const gradId=`grad_${chartKey}_${field}`;
+    // y-axis gridlines: 3 lines
+    const gridVals=[0,Math.round(maxV/2),maxV];
+
+    return(
+      <div style={{position:"relative"}} onMouseLeave={()=>setHoverInfo(null)}>
+        <svg viewBox={`0 0 ${W} ${H+4}`} style={{width:"100%",height:height+4,display:"block",overflow:"visible"}}>
+          <defs>
+            <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={color} stopOpacity="0.22"/>
+              <stop offset="100%" stopColor={color} stopOpacity="0.01"/>
+            </linearGradient>
+          </defs>
+          {/* Grid lines */}
+          {gridVals.map((gv,gi)=>{
+            const gy=yScale(gv);
+            return(
+              <g key={gi}>
+                <line x1={PL} y1={gy} x2={W-PR} y2={gy} stroke={T.border} strokeWidth="0.8" strokeDasharray={gi===0?"none":"3,3"}/>
+                <text x={PL-4} y={gy+4} textAnchor="end" fontSize="9" fill={T.textMuted}>{fmt?fmt(gv):gv}</text>
+              </g>
+            );
+          })}
+          {/* Area fill */}
+          {pts.length>1&&<path d={areaD} fill={`url(#${gradId})`}/>}
+          {/* Line */}
+          {pts.length>1&&<path d={pathD} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>}
+          {/* Zero baseline */}
+          <line x1={PL} y1={H-PB} x2={W-PR} y2={H-PB} stroke={T.border} strokeWidth="1"/>
+          {/* X labels — show ~6 evenly spaced */}
+          {data.map((d,i)=>{
+            const step=Math.max(1,Math.floor(data.length/6));
+            if(i%step!==0&&i!==data.length-1)return null;
+            return <text key={i} x={xScale(i)} y={H-PB+12} textAnchor="middle" fontSize="9" fill={T.textMuted}>{d.label}</text>;
+          })}
+          {/* Data dots + hover zones */}
+          {pts.map((p,i)=>{
+            const isHov=hoverInfo&&hoverInfo.chartKey===chartKey&&hoverInfo.idx===i;
+            return(
+              <g key={i}>
+                {/* wide invisible hover target */}
+                <rect
+                  x={i===0?PL:((pts[i-1].x+p.x)/2)}
+                  y={PT} width={i===0?((pts[1]?.x||p.x)-p.x)/2+6:(i===pts.length-1?6:((p.x-(pts[i-1].x+p.x)/2)))}
+                  height={H-PT-PB} fill="transparent"
+                  onMouseEnter={()=>setHoverInfo({chartKey,idx:i,xPct:p.x/W*100,yPct:p.y/H*100,val:data[i][field],label:data[i].label})}
+                  style={{cursor:"crosshair"}}
+                />
+                <circle cx={p.x} cy={p.y} r={isHov?5:3} fill={isHov?color:T.bgCard} stroke={color} strokeWidth={isHov?2:1.5}/>
+              </g>
+            );
+          })}
+        </svg>
+        {/* Tooltip */}
+        {hoverInfo&&hoverInfo.chartKey===chartKey&&(()=>{
+          const p=pts[hoverInfo.idx];
+          const leftPct=p.x/W*100;
+          const topPct=p.y/(H+4)*100;
+          return(
+            <div style={{position:"absolute",top:`${topPct}%`,left:`${leftPct}%`,transform:"translate(-50%,-120%)",background:T.bgCard,border:`1px solid ${color}`,borderRadius:8,padding:"5px 10px",fontSize:11,fontWeight:700,color:T.text,boxShadow:"0 4px 14px rgba(0,0,0,0.14)",pointerEvents:"none",whiteSpace:"nowrap",zIndex:10}}>
+              <div style={{color}}>{fmt?fmt(hoverInfo.val):hoverInfo.val}</div>
+              <div style={{fontSize:9,color:T.textMuted}}>{hoverInfo.label}</div>
+            </div>
+          );
+        })()}
+      </div>
+    );
+  }
+
+  const teamKPI=agents.map(a=>{
+    const aS=a.allSales||a.sales||[];
+    const b=getBuckets(aS);
+    return{...a,buckets:b,totPrem:b.reduce((s,x)=>s+x.premium,0)};
+  });
+
+  if(buckets.every(b=>b.premium===0&&b.policies===0)){
+    return(
+      <div style={{background:T.bgCard,borderRadius:16,padding:18,border:`1px solid ${T.border}`,marginBottom:14,boxShadow:T.shadow}}>
+        <div style={{fontSize:15,fontWeight:800,marginBottom:4}}>📈 KPI Trends</div>
+        <div style={{textAlign:"center",padding:"28px 0",color:T.textMuted}}>
+          <div style={{fontSize:36,marginBottom:8}}>📊</div>
+          <div style={{fontSize:13,fontWeight:600}}>No trend data yet.</div>
+          <div style={{fontSize:11,marginTop:4}}>Once sales are logged, trend lines will appear here.</div>
+        </div>
+      </div>
+    );
+  }
+
+  return(
+    <div style={{background:T.bgCard,borderRadius:16,padding:18,border:`1px solid ${T.border}`,marginBottom:14,boxShadow:T.shadow}}>
+      {/* Header */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+        <div>
+          <div style={{fontSize:15,fontWeight:800}}>📈 KPI Trends — {agent?.name?.split(" ")[0]}</div>
+          <div style={{fontSize:11,color:T.textMuted,marginTop:2}}>Hover points to see values · vs prior {trendTab==="daily"?"day":trendTab==="period"?"period":"week"}</div>
+        </div>
+        <div style={{display:"flex",gap:5}}>
+          {[{id:"daily",l:"Daily"},{id:"weekly",l:"Weekly"},{id:"period",l:"Period"}].map(t=>
+            <button key={t.id} onClick={()=>setTrendTab(t.id)} style={{padding:"6px 12px",borderRadius:8,border:`1px solid ${trendTab===t.id?agent?.color||"#6366f1":T.border}`,background:trendTab===t.id?`${agent?.color||"#6366f1"}12`:T.bgSubtle,color:trendTab===t.id?agent?.color||"#6366f1":T.textMuted,fontSize:12,fontWeight:trendTab===t.id?700:500,cursor:"pointer"}}>{t.l}</button>
+          )}
+        </div>
+      </div>
+
+      {/* KPI Summary row */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8,marginBottom:18}}>
+        {kpis.map((k,i)=>(
+          <div key={i} style={{padding:"10px 8px",borderRadius:12,background:`${k.color}08`,border:`1px solid ${k.color}22`,textAlign:"center"}}>
+            <div style={{fontSize:16,marginBottom:2}}>{k.icon}</div>
+            <div style={{fontSize:17,fontWeight:900,color:k.color}}>{k.total}</div>
+            <div style={{fontSize:9,color:T.textMuted,textTransform:"uppercase",letterSpacing:0.5,marginTop:1}}>{k.label}</div>
+            <div style={{fontSize:11,fontWeight:700,color:k.trend.color,marginTop:3}}>{k.trend.dir}{k.trend.pct>0?` ${k.trend.pct}%`:""}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Full-width line charts — stacked, large */}
+      <div style={{display:"flex",flexDirection:"column",gap:16,marginBottom:18}}>
+        {/* Big premium chart */}
+        <div style={{padding:"14px 16px",borderRadius:14,background:T.bgSubtle,border:`1px solid ${T.borderLight}`}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+            <div style={{fontSize:13,fontWeight:800,color:T.text}}>💰 Premium Revenue</div>
+            <div style={{fontSize:11,color:kpis[0].trend.color,fontWeight:700}}>{kpis[0].trend.dir}{kpis[0].trend.pct>0?` ${kpis[0].trend.pct}%`:""}</div>
+          </div>
+          <LineChart data={buckets} field="premium" color="#f59e0b" chartKey="prem" fmt={fmtShort} height={160}/>
+        </div>
+        {/* Policies + Life side by side */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+          {[
+            {key:"pol",field:"policies",label:"📋 Policies",color:agent?.color||"#6366f1",idx:1},
+            {key:"life",field:"life",label:"❤️ Life Policies",color:"#db2777",idx:2},
+          ].map(c=>(
+            <div key={c.key} style={{padding:"14px 16px",borderRadius:14,background:T.bgSubtle,border:`1px solid ${T.borderLight}`}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                <div style={{fontSize:13,fontWeight:800,color:T.text}}>{c.label}</div>
+                <div style={{fontSize:11,color:kpis[c.idx].trend.color,fontWeight:700}}>{kpis[c.idx].trend.dir}{kpis[c.idx].trend.pct>0?` ${kpis[c.idx].trend.pct}%`:""}</div>
+              </div>
+              <LineChart data={buckets} field={c.field} color={c.color} chartKey={c.key} height={120}/>
+            </div>
+          ))}
+        </div>
+        {/* Commercial + Personal Lines side by side */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+          {[
+            {key:"comm",field:"commercial",label:"🏢 Commercial",color:"#059669",idx:3},
+            {key:"pl",field:"personal",label:"🏠 Personal Lines",color:"#6366f1",idx:4},
+          ].map(c=>(
+            <div key={c.key} style={{padding:"14px 16px",borderRadius:14,background:T.bgSubtle,border:`1px solid ${T.borderLight}`}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                <div style={{fontSize:13,fontWeight:800,color:T.text}}>{c.label}</div>
+                <div style={{fontSize:11,color:kpis[c.idx].trend.color,fontWeight:700}}>{kpis[c.idx].trend.dir}{kpis[c.idx].trend.pct>0?` ${kpis[c.idx].trend.pct}%`:""}</div>
+              </div>
+              <LineChart data={buckets} field={c.field} color={c.color} chartKey={c.key} height={120}/>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Team comparison — compact line sparklines */}
+      <div style={{borderTop:`1px solid ${T.borderLight}`,paddingTop:14}}>
+        <div style={{fontSize:12,fontWeight:700,color:T.textSec,marginBottom:10}}>👥 Team Premium Comparison</div>
+        <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(agents.length,4)},1fr)`,gap:10}}>
+          {teamKPI.sort((a,b)=>b.totPrem-a.totPrem).map((a)=>(
+            <div key={a.id} style={{padding:"10px 12px",borderRadius:12,background:T.bgSubtle,border:`1px solid ${a.id===selAgent?a.color+"44":T.borderLight}`,opacity:a.id===selAgent?1:0.8}}>
+              <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
+                <span style={{fontSize:18}}>{a.avatar}</span>
+                <div><div style={{fontSize:11,fontWeight:700,color:a.color}}>{a.name.split(" ")[0]}</div><div style={{fontSize:10,color:T.textMuted}}>{fmtShort(a.totPrem)}</div></div>
+              </div>
+              <LineChart data={a.buckets} field="premium" color={a.color} chartKey={`team_${a.id}`} fmt={fmtShort} height={60}/>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function App(){
+  const[dark,setDark]=useState(()=>loadLS("yd_dark",false));
+  const T=dark?DARK_THEME:LIGHT;
+  const[agentsCfg,setAgentsCfg]=useState(()=>{const v=loadLS("yd_cfg_v","");if(v!=="v14"){saveLS("yd_cfg_v","v14");saveLS("yd_agents",DEFAULT_AGENTS);return DEFAULT_AGENTS;}return loadLS("yd_agents",DEFAULT_AGENTS);});
+  const[periods,setPeriods]=useState(()=>loadLS("yd_periods",DEFAULT_PERIODS));
+  const[selPeriodIdx,setSelPeriodIdx]=useState(()=>getCurPeriodIdx(loadLS("yd_periods",DEFAULT_PERIODS)));
+  const[periodOverridden,setPeriodOverridden]=useState(false);
+  const[allData,setAllData]=useState([]);
+  const[agents,setAgents]=useState([]);
+  const[loading,setLoading]=useState(true);
+  const[lastRefresh,setLastRefresh]=useState(null);
+  const[refreshing,setRefreshing]=useState(false);
+  const[tab,setTab]=useState("overview");
+  const[selAgent,setSelAgent]=useState(agentsCfg[0]?.id||"joey");
+  const[hoverBadge,setHoverBadge]=useState(null);
+  const[newPolicy,setNewPolicy]=useState(null);
+  const[showAdmin,setShowAdmin]=useState(false);
+  const[showPasswordPrompt,setShowPasswordPrompt]=useState(false);
+  const[adminUnlocked,setAdminUnlocked]=useState(false);
+  const[showPeriods,setShowPeriods]=useState(false);
+  const[showGuide,setShowGuide]=useState(false);
+  const[showAvatar,setShowAvatar]=useState(false);
+  const[showSound,setShowSound]=useState(false);
+  const[showMsgAdmin,setShowMsgAdmin]=useState(false);
+  const[teamGoalsCfg,setTeamGoalsCfg]=useState(()=>loadLS("yd_team_goals",DEFAULT_TEAM_GOALS));
+  const[showTeamGoals,setShowTeamGoals]=useState(false);
+  const[messages,setMessages]=useState(()=>loadLS("yd_messages",[]));
+  const[ctmData,setCtmData]=useState(null);
+  // Challenges
+  const[challenges,setChallenges]=useState(()=>loadLS("yd_challenges",[]));
+  const[showChallengeModal,setShowChallengeModal]=useState(false);
+  const[challengeVs,setChallengeVs]=useState(null);
+  // Vision board
+  const[showVision,setShowVision]=useState(false);
+  const prevCount=useRef(null),prevAgents=useRef([]);
+  const{canvasRef,launch:launchConfetti}=useConfetti();
+  const pendingAction=useRef("admin");
+
+  const applyFilter=useCallback((raw,idx)=>{const p=periods[idx];if(!p)return raw;return raw.map(a=>{const f=filterByPeriod(a.allSales||a.sales,p);return{...a,sales:f,totalRevenue:f.reduce((s,x)=>s+x.price,0),totalPolicies:f.length};});},[periods]);
+
+  const fetchAll=useCallback(async()=>{
+    const results=[];
+    if(CTM_WEB_APP_URL){
+      try{
+        const url=`${PROXY_URL}?action=getAllData`;
+        const r=await fetch(url,{redirect:'follow',credentials:'omit'});
+        if(r.ok){
+          const text=await r.text();
+          let json=null;
+          try{const clean=text.replace(/^\uFEFF/,'').trim();json=JSON.parse(clean);}catch(e){const match=text.match(/\{.*\}/s);if(match)json=JSON.parse(match[0]);}
+          if(json&&json.success&&json.data){
+            for(const ag of agentsCfg){
+              const d=json.data[ag.id];
+              if(!d||!d.rows){results.push({...ag,allSales:[],sales:[],totalRevenue:0,totalPolicies:0});continue;}
+              const allSales=d.rows.map(row=>{
+                // Flexible column lookup — handles any capitalization/naming variant
+                const rk=Object.keys(row);
+                const find=(aliases)=>{for(const a of aliases){const k=rk.find(k=>k.toLowerCase().replace(/[^a-z]/g,"")===a.toLowerCase().replace(/[^a-z]/g,""));if(k&&row[k]!=null&&row[k]!=="")return row[k];}return null;};
+                const name=find(["NAME","name","clientname","client","insuredname","insured","customername","customer"])||"Unknown";
+                const rawPrice=find(["Price","price","premium","annualpremium","annual","prem","annpremium","totalpremium","amount","cost"]);
+                const price=rawPrice?parseFloat(String(rawPrice).replace(/[$,\s]/g,""))||0:0;
+                const boundDate=find(["BoundDate","bounddate","bound","datebound","binddate","closeddate","closedate","closingdate","dateclosed","sold"])||"";
+                const effectiveDate=find(["EffectiveDate","effectivedate","effective","effdate"])||"";
+                const platform=find(["Salesplatform","salesplatform","platform","carrier","company","insurancecompany","provider"])||"Unknown";
+                const type=find(["TypeofInsurance","typeofinsurance","type","linetype","insurancetype","line","coverage","coveragetype","policytype"])||"Other";
+                const policyNumber=find(["PolicyNumber","policynumber","policy","policyno","polnum"])||"";
+                const leadSource=find(["LeadSource","leadsource","source","leadsrc","leadorigin"])||"";
+                const reviewRaw=find(["Reviews","reviews","Review","review","rating","customerreview","feedback"])||"";
+                const review=String(reviewRaw).trim();
+                const status=find(["Status","status","policystatus","state"])||"Bound";
+                let boundDateObj=null;
+                let boundDateDisplay=String(boundDate||"").trim();
+                const bdStr=boundDateDisplay;
+                if(bdStr){
+                  if(!isNaN(bdStr)&&Number(bdStr)>40000){const d2=new Date((Number(bdStr)-25569)*86400*1000);if(!isNaN(d2)){boundDateObj=d2;}}
+                  else if(bdStr.includes("-")||bdStr.includes("T")){const d2=new Date(bdStr);if(!isNaN(d2)){boundDateObj=d2;}}
+                  else if(bdStr.includes("/")){const p=bdStr.split("/");if(p.length>=3)boundDateObj=new Date(parseInt(p[2]),parseInt(p[0])-1,parseInt(p[1]));}
+                  else{const d2=new Date(bdStr);if(!isNaN(d2)){boundDateObj=d2;}}
+                  if(boundDateObj&&!isNaN(boundDateObj)){const m=boundDateObj.getMonth()+1,d2=boundDateObj.getDate(),y=boundDateObj.getFullYear();boundDateDisplay=`${m}/${d2}/${y}`;}
+                }
+                return{name,status,boundDate:boundDateDisplay,effectiveDate:String(effectiveDate),price,platform,type,policyNumber,referral:false,leadSource,review,daysToBindFromLead:null,boundDateObj};
+              }).filter(s=>s.name&&s.name!=="NAME"&&s.name!=="name"&&s.price>0);
+              results.push({...ag,allSales,sales:allSales,totalRevenue:allSales.reduce((s,p)=>s+p.price,0),totalPolicies:allSales.length});
+            }
+            setAllData(results);
+            const filtered=applyFilter(results,selPeriodIdx);
+            const newTotal=filtered.reduce((s,a)=>s+a.totalPolicies,0);
+            if(prevCount.current!==null&&newTotal>prevCount.current){for(const ag of filtered){const prev=prevAgents.current.find(a=>a.id===ag.id);if(prev&&ag.totalPolicies>prev.totalPolicies){const newest=ag.sales[ag.sales.length-1];if(newest){setNewPolicy({...newest,agentName:ag.name});playSound(ag.sound||"chime");launchConfetti();break;}}}}
+            prevCount.current=newTotal;prevAgents.current=filtered;setAgents(filtered);setLastRefresh(new Date());setLoading(false);
+            return;
+          }
+        }
+      }catch(e){console.warn("Proxy fetch error:",e);}
+    }
+    setAllData([]);setAgents(agentsCfg.map(a=>({...a,allSales:[],sales:[],totalRevenue:0,totalPolicies:0})));setLoading(false);
+  },[agentsCfg,applyFilter,selPeriodIdx,launchConfetti]);
+
+  const fetchCTM=useCallback(async()=>{if(!CTM_WEB_APP_URL)return;try{const r=await fetch(CTM_WEB_APP_URL);const d=await r.json();setCtmData(d.producers||null);}catch(e){}},[]);
+
+  useEffect(()=>{if(allData.length>0){const f=applyFilter(allData,selPeriodIdx);setAgents(f);prevCount.current=f.reduce((s,a)=>s+a.totalPolicies,0);prevAgents.current=f;}},[selPeriodIdx,periods,allData,applyFilter]);
+  useEffect(()=>{fetchAll();fetchCTM();},[]);
+  useEffect(()=>{const i=setInterval(()=>{fetchAll();fetchCTM();},5*60*1000);return()=>clearInterval(i);},[fetchAll,fetchCTM]);
+
+  const handleRefresh=useCallback(async()=>{setRefreshing(true);await Promise.all([fetchAll(),fetchCTM()]);setRefreshing(false);},[fetchAll,fetchCTM]);
+  const saveAgentsCfg=useCallback(cfg=>{setAgentsCfg(cfg);saveLS("yd_agents",cfg);setTimeout(fetchAll,200);},[fetchAll]);
+  const savePeriods=useCallback(p=>{setPeriods(p);saveLS("yd_periods",p);if(!periodOverridden)setSelPeriodIdx(getCurPeriodIdx(p));},[periodOverridden]);
+  useEffect(()=>{if(!periodOverridden){const auto=getCurPeriodIdx(periods);setSelPeriodIdx(auto);}const i=setInterval(()=>{if(!periodOverridden)setSelPeriodIdx(getCurPeriodIdx(periods));},60*60*1000);return()=>clearInterval(i);},[periods,periodOverridden]);
+  const saveMessages=useCallback(msgs=>{setMessages(msgs);saveLS("yd_messages",msgs);},[]);
+  const handleExternalMessages=useCallback(msgs=>{
+    setMessages(prev=>{
+      if(msgs.length!==prev.length||JSON.stringify(msgs)!==JSON.stringify(prev)){
+        saveLS("yd_messages",msgs);
+        return msgs;
+      }
+      return prev;
+    });
+  },[]);
+  const saveTeamGoals=useCallback(g=>{setTeamGoalsCfg(g);saveLS("yd_team_goals",g);},[]);
+  const toggleDark=()=>{setDark(d=>{saveLS("yd_dark",!d);return!d;});};
+  const updateMyAvatar=(av)=>{const cfg=agentsCfg.map(a=>a.id===selAgent?{...a,avatar:av}:a);saveAgentsCfg(cfg);};
+  const updateMySound=(snd)=>{const cfg=agentsCfg.map(a=>a.id===selAgent?{...a,sound:snd}:a);saveAgentsCfg(cfg);};
+  const handleAdminClick=()=>{if(adminUnlocked){setShowAdmin(true);}else{pendingAction.current="admin";setShowPasswordPrompt(true);}};
+  const handleBoardClick=()=>{if(adminUnlocked){setShowMsgAdmin(true);}else{pendingAction.current="board";setShowPasswordPrompt(true);}};
+  const issueChallenge=(c)=>{const updated=[...challenges,c];setChallenges(updated);saveLS("yd_challenges",updated);};
+  const deleteChallenge=(id)=>{const updated=challenges.filter(c=>c.id!==id);setChallenges(updated);saveLS("yd_challenges",updated);};
+
+  if(loading&&agents.length===0){return <div style={{minHeight:"100vh",background:T.bg,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,color:T.text}}><div style={{fontSize:56,animation:"spin 1s linear infinite"}}>📊</div><div style={{fontSize:20,fontWeight:800}}>Loading YDI Battle Royale...</div><div style={{fontSize:14,color:T.textMuted}}>Fetching live data from Google Sheets</div></div>;}
+
+  const curPeriod=periods[selPeriodIdx];
+  const isCurPeriod=selPeriodIdx===getCurPeriodIdx(periods);
+  const agent=agents.find(a=>a.id===selAgent)||agents[0];
+  const sales=agent?.sales||[];const rev=agent?.totalRevenue||0;const pols=agent?.totalPolicies||0;
+  const rTier=getTier(revTiers,rev);const pTier=getTier(polTiers,pols);
+  const badges=getBadges(sales);const earned=badges.filter(a=>a.earned).length;
+  const agentCTM=ctmData?ctmData[agent?.name]||ctmData[agent?.name?.split(" ")[0]]||null:null;
+  const xp=calcXP(sales,agentCTM);const lvl=getLevel(xp);
+  const teamRev=agents.reduce((s,a)=>s+a.totalRevenue,0);const teamPols=agents.reduce((s,a)=>s+a.totalPolicies,0);
+  const sorted=[...agents].sort((a,b)=>b.totalRevenue-a.totalRevenue);
+  const rankOf=sorted.findIndex(a=>a.id===selAgent)+1;
+  const streak=getStreak(sales);
+  const breakdown=getPolicyBreakdown(sales);
+  const typeBreak={};sales.forEach(s=>{typeBreak[s.type]=(typeBreak[s.type]||0)+s.price;});
+  const platBreak={};sales.forEach(s=>{platBreak[s.platform]=(platBreak[s.platform]||0)+1;});
+  const lifeSales=sales.filter(s=>s.type.toLowerCase().includes("life"));
+  const commCount=sales.filter(s=>categorizePolicy(s.type)==="commercial").length;
+  const maxTeamRev=Math.max(...agents.map(a=>a.totalRevenue),1);
+  const maxTeamPol=Math.max(...agents.map(a=>a.totalPolicies),1);
+  const allReviews=agents.flatMap(a=>a.sales.filter(s=>s.review&&String(s.review).trim()).map(s=>({...s,review:String(s.review).trim(),agentName:a.name,agentAvatar:a.avatar,agentColor:a.color})));
+  const teamGoalTier=getTier(TEAM_GOALS,teamRev);
+  const lifeBoard=agents.map(a=>{const ls=a.sales.filter(s=>s.type.toLowerCase().includes("life"));return{...a,lifeCount:ls.length,lifePrem:ls.reduce((s,p)=>s+p.price,0)};}).sort((a,b)=>b.lifePrem-a.lifePrem);
+
+  const getChallengeVal=(a,metric)=>{if(!a)return 0;if(metric==="life")return(a.sales||[]).filter(s=>categorizePolicy(s.type)==="life").length;if(metric==="commercial")return(a.sales||[]).filter(s=>categorizePolicy(s.type)==="commercial").length;return a[metric]||0;};
+
+  const tabList=[{id:"overview",label:"Dashboard",icon:"📊"},{id:"goals",label:"Goals",icon:"🎯"},{id:"leaderboard",label:"Leaderboard",icon:"🏅"},{id:"achievements",label:"Badges",icon:"🏆"},{id:"missions",label:"Missions",icon:"⚔️"},{id:"breakdown",label:"Breakdown",icon:"📈"},{id:"quests",label:"Quests",icon:"🗺️"},{id:"reviews",label:"Reviews",icon:"⭐"}];
+
+
+  return(
+    <div className="ydi-main" style={{minHeight:"100vh",background:T.bg,color:T.text,fontFamily:"'Segoe UI',-apple-system,sans-serif",padding:16,position:"relative"}}>
+      <canvas ref={canvasRef} style={{position:"fixed",top:0,left:0,width:"100%",height:"100%",pointerEvents:"none",zIndex:9998}}/>
+
+      {newPolicy&&<div style={{position:"fixed",top:20,left:"50%",transform:"translateX(-50%)",background:T.bgCard,borderRadius:16,padding:"16px 24px",boxShadow:"0 8px 32px rgba(0,0,0,0.15)",zIndex:9999,animation:"toastIn 0.5s",display:"flex",alignItems:"center",gap:14,maxWidth:500,color:T.text}}><div style={{fontSize:36}}>🎉</div><div><div style={{fontSize:15,fontWeight:800}}>New Policy Bound!</div><div style={{fontSize:13,color:T.textSec}}>{newPolicy.agentName} closed <strong>{newPolicy.name}</strong> — <strong style={{color:"#10b981"}}>{fmtPrice(newPolicy.price||0)}</strong></div></div><button onClick={()=>setNewPolicy(null)} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:T.textMuted}}>×</button></div>}
+
+      {showPasswordPrompt&&<PasswordPrompt onSuccess={()=>{setAdminUnlocked(true);setShowPasswordPrompt(false);if(pendingAction.current==="board"){setShowMsgAdmin(true);}else if(pendingAction.current==="periods"){setShowPeriods(true);}else if(pendingAction.current==="teamgoals"){setShowTeamGoals(true);}else{setShowAdmin(true);}}} onClose={()=>setShowPasswordPrompt(false)} T={T}/>}
+      {showAdmin&&<AdminPanel agentsCfg={agentsCfg} onSave={saveAgentsCfg} onClose={()=>setShowAdmin(false)} T={T}/>}
+      {showPeriods&&<PeriodSettings periods={periods} onSave={savePeriods} onClose={()=>setShowPeriods(false)} T={T}/>}
+      {showGuide&&<UserGuide onClose={()=>setShowGuide(false)} T={T}/>}
+      {showAvatar&&<AvatarPicker current={agent?.avatar} onSelect={updateMyAvatar} onClose={()=>setShowAvatar(false)} T={T}/>}
+      {showSound&&<SoundPicker current={agent?.sound} onSelect={updateMySound} onClose={()=>setShowSound(false)} T={T}/>}
+      {showMsgAdmin&&<MessageBoardAdmin messages={messages} onSave={saveMessages} onClose={()=>setShowMsgAdmin(false)} T={T}/>}
+      {showChallengeModal&&challengeVs&&agent&&<ChallengeModal fromAgent={agent} toAgent={challengeVs} agents={agents} onChallenge={issueChallenge} onClose={()=>{setShowChallengeModal(false);setChallengeVs(null);}} T={T}/>}
+      {showVision&&agent&&<VisionBoard agent={agent} onClose={()=>setShowVision(false)} T={T}/>}
+
+      {showTeamGoals&&<Modal onClose={()=>setShowTeamGoals(false)} T={T}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}><h2 style={{fontSize:18,fontWeight:800}}>🎯 Team Goals</h2><button onClick={()=>setShowTeamGoals(false)} style={{background:"none",border:"none",fontSize:24,cursor:"pointer",color:T.textMuted}}>×</button></div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8,marginBottom:16}}>
+          {[{f:"premium",label:"Team Premium $"},{f:"policies",label:"Total Policies"},{f:"personalLines",label:"Personal Lines"},{f:"life",label:"Life Policies"},{f:"commercial",label:"Commercial"}].map(({f,label})=>
+            <div key={f}><div style={{fontSize:10,color:T.textMuted,marginBottom:3}}>{label}</div><input type="number" value={teamGoalsCfg[f]||""} onChange={e=>saveTeamGoals({...teamGoalsCfg,[f]:Number(e.target.value)})} style={{width:"100%",padding:"7px 10px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:13,background:T.bgSubtle,color:T.text,fontWeight:700}}/></div>
+          )}
+        </div>
+        <button onClick={()=>setShowTeamGoals(false)} style={{width:"100%",padding:12,borderRadius:12,border:"none",background:"#059669",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>✅ Done</button>
+      </Modal>}
+
+      <div className="ydi-container" style={{maxWidth:1200,margin:"0 auto"}}>
+        {/* HEADER */}
+        <div className="ydi-header" style={{display:"flex",alignItems:"center",gap:14,marginBottom:12}}>
+          <img src={LOGO_B64} alt="YDI" style={{width:60,height:60,borderRadius:14,objectFit:"contain",padding:4,background:dark?"#ffffff":"transparent"}}/>
+          <div style={{flex:1}}>
+            <div style={{fontSize:22,fontWeight:900,letterSpacing:-0.5}}>Young Douglas Insurance Services</div>
+            <div style={{fontSize:11,color:T.textMuted,letterSpacing:2,textTransform:"uppercase",fontWeight:600}}>Live Sales Dashboard · v15.0</div>
+          </div>
+          <div className="ydi-header-btns" style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap",justifyContent:"flex-end"}}>
+            <button onClick={()=>setShowGuide(true)} style={{padding:"7px 11px",borderRadius:8,border:`1px solid ${T.border}`,background:T.bgCard,cursor:"pointer",fontSize:13,color:T.textSec}}>📖</button>
+            <button onClick={toggleDark} style={{padding:"7px 11px",borderRadius:8,border:`1px solid ${T.border}`,background:T.bgCard,cursor:"pointer",fontSize:15}}>{dark?"☀️":"🌙"}</button>
+            <button onClick={()=>{if(adminUnlocked){setShowTeamGoals(true);}else{pendingAction.current="teamgoals";setShowPasswordPrompt(true);}}} style={{padding:"7px 11px",borderRadius:8,border:`1px solid ${T.border}`,background:T.bgCard,cursor:"pointer",fontSize:12,color:"#059669",fontWeight:700}}>🎯 Goals</button>
+            <button onClick={handleBoardClick} style={{padding:"7px 11px",borderRadius:8,border:`1px solid ${T.border}`,background:T.bgCard,cursor:"pointer",fontSize:12,color:T.textSec,fontWeight:600}}>📋 Board</button>
+            <button onClick={handleAdminClick} style={{padding:"7px 11px",borderRadius:8,border:`1px solid ${T.border}`,background:T.bgCard,cursor:"pointer",fontSize:13,color:T.textSec}}>🔐 Admin</button>
+            <button onClick={handleRefresh} disabled={refreshing} style={{padding:"7px 13px",borderRadius:8,border:`1px solid ${T.border}`,background:refreshing?T.bgSubtle:T.bgCard,color:refreshing?T.textMuted:T.textSec,fontSize:12,cursor:refreshing?"wait":"pointer",fontWeight:600}}>{refreshing?"⏳":"🔄 Refresh"}</button>
+          </div>
+        </div>
+
+        {/* AGENT ROW */}
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+          <div onClick={()=>setShowAvatar(true)} style={{width:52,height:52,borderRadius:14,background:`linear-gradient(135deg,${agent?.color||"#6366f1"},${agent?.color||"#6366f1"}cc)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:26,boxShadow:`0 4px 14px ${agent?.color||"#6366f1"}30`,cursor:"pointer"}}>{agent?.avatar||"👤"}</div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:20,fontWeight:800}}>{agent?.name||"Loading..."}</div>
+            <div style={{fontSize:12,color:T.textMuted}}>Rank #{rankOf} · Level {lvl.current.level} · {xp.toLocaleString()} XP{agentCTM?` · 📞 ${agentCTM.answeredCalls||0} calls`:""}</div>
+          </div>
+          <button onClick={()=>setShowVision(true)} title="My Vision Board" style={{padding:"7px 11px",borderRadius:10,border:`1px solid ${T.border}`,background:T.bgCard,cursor:"pointer",fontSize:14,color:T.textSec}}>📌</button>
+          <button onClick={()=>setShowSound(true)} style={{padding:"7px 11px",borderRadius:10,border:`1px solid ${T.border}`,background:T.bgCard,cursor:"pointer",fontSize:14,color:T.textSec}}>🔊</button>
+        </div>
+
+        {/* PERIOD SELECTOR */}
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10,padding:"8px 14px",background:isCurPeriod?"#f0fdf408":"#fffbeb08",borderRadius:12,border:`1px solid ${isCurPeriod?"#bbf7d044":T.border}`}}>
+          <span style={{fontSize:15}}>📅</span>
+          {adminUnlocked?(
+            <select value={selPeriodIdx} onChange={e=>{setSelPeriodIdx(Number(e.target.value));setPeriodOverridden(Number(e.target.value)!==getCurPeriodIdx(periods));}} style={{flex:1,padding:"5px 8px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:13,fontWeight:600,background:T.bgCard,color:T.text,cursor:"pointer"}}>
+              {periods.map((p,i)=><option key={i} value={i}>{p.name}{i===getCurPeriodIdx(periods)?" (Current)":""} — {fmtPD(p.start)} to {fmtPD(p.end)}</option>)}
+            </select>
+          ):(
+            <div style={{flex:1,display:"flex",alignItems:"center",gap:8}}>
+              <span style={{fontSize:13,fontWeight:700,color:T.text}}>{curPeriod?.name||"All Time"}</span>
+              <span style={{fontSize:11,color:T.textMuted}}>{fmtPD(curPeriod?.start)} → {fmtPD(curPeriod?.end)}</span>
+            </div>
+          )}
+          <button onClick={()=>{if(adminUnlocked){setShowPeriods(true);}else{pendingAction.current="periods";setShowPasswordPrompt(true);}}} style={{padding:"5px 10px",borderRadius:8,border:`1px solid ${T.border}`,background:T.bgCard,color:T.textSec,fontSize:12,cursor:"pointer",fontWeight:600}}>⚙️ Periods</button>
+          {periodOverridden&&adminUnlocked&&<button onClick={()=>{setPeriodOverridden(false);setSelPeriodIdx(getCurPeriodIdx(periods));}} style={{padding:"5px 8px",borderRadius:8,border:"none",background:"#fef3c7",color:"#b45309",fontSize:11,cursor:"pointer",fontWeight:700}}>↺ Auto</button>}
+        </div>
+
+        {lastRefresh&&<div style={{display:"flex",alignItems:"center",gap:6,marginBottom:10,fontSize:12,color:"#059669"}}><span style={{display:"inline-block",width:7,height:7,borderRadius:"50%",background:"#059669",animation:"pulse 2s infinite"}}/>LIVE · {lastRefresh.toLocaleTimeString()} · Auto 5 min{CTM_WEB_APP_URL&&ctmData?<span style={{marginLeft:8,color:"#6366f1",fontWeight:600}}>· 📞 CTM Live</span>:null}</div>}
+
+        {/* AGENT TABS */}
+        <div className="ydi-agent-tabs" style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap"}}>
+          {agents.map(a=>{
+            const aR=sorted.findIndex(x=>x.id===a.id)+1,isL=aR===1,isMe=a.id===selAgent;
+            const aCTM=ctmData?ctmData[a.name]||ctmData[a.name.split(" ")[0]]||null:null;
+            return(
+              <button key={a.id} onClick={()=>setSelAgent(a.id)} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 14px",borderRadius:14,border:`1px solid ${isMe?a.color+"44":T.border}`,background:isMe?`${a.color}08`:T.bgCard,cursor:"pointer",color:isMe?T.text:T.textSec,flex:1,minWidth:110,position:"relative"}}>
+                <span onClick={e=>{e.stopPropagation();setSelAgent(a.id);setShowAvatar(true);}} title="Change avatar" style={{fontSize:20,position:"relative",cursor:"pointer",display:"inline-block"}}>
+                  {a.avatar}
+                  {isL&&a.totalRevenue>0&&<span style={{position:"absolute",top:-8,right:-8,fontSize:10}}>👑</span>}
+                  <span style={{position:"absolute",bottom:-4,right:-6,fontSize:8,background:T.bgSubtle,borderRadius:4,padding:"0 2px",opacity:0.7,pointerEvents:"none"}}>✏️</span>
+                </span>
+                <div style={{textAlign:"left",minWidth:0,flex:1}}>
+                  <div style={{fontSize:12,fontWeight:700,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{a.name.split(" ")[0]}</div>
+                  <div style={{fontSize:11,color:isMe?a.color:T.textMuted}}>${(a.totalRevenue/1000).toFixed(1)}K · {a.totalPolicies} pol</div>
+                  {aCTM&&<div style={{fontSize:10,color:"#0891b2",fontWeight:600}}>📞 {aCTM.answeredCalls||0} calls</div>}
+                </div>
+                <span onClick={e=>{e.stopPropagation();setSelAgent(a.id);setShowSound(true);}} title="Change sound" style={{fontSize:13,cursor:"pointer",opacity:0.6,flexShrink:0}}>🔊</span>
+              </button>);
+          })}
+        </div>
+
+        {lvl.next&&<div style={{marginBottom:14}}><div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:T.textMuted,marginBottom:3}}><span>Lvl {lvl.current.level} — {agent?.name?.split(" ")[0]}</span><span>{Math.max(0,xp-lvl.current.xp)}/{lvl.next.xp-lvl.current.xp} XP to Lvl {lvl.next.level}</span></div><MiniBar value={Math.max(0,xp-lvl.current.xp)} max={lvl.next.xp-lvl.current.xp} color={agent?.color||"#6366f1"} height={6} T={T}/></div>}
+
+        {/* MAIN TABS */}
+        <div className="ydi-tabs" style={{display:"flex",gap:2,marginBottom:20,background:T.bgSubtle,borderRadius:14,padding:4}}>
+          {tabList.map(t=><button key={t.id} onClick={()=>setTab(t.id)} style={{flex:1,padding:"10px 4px",borderRadius:10,border:"none",background:tab===t.id?T.bgCard:"transparent",color:tab===t.id?agent?.color||"#6366f1":T.textMuted,cursor:"pointer",fontSize:11,fontWeight:600,boxShadow:tab===t.id?T.shadow:"none",whiteSpace:"nowrap"}}>{t.icon} {t.label}</button>)}
+        </div>
+
+
+        {/* ====== OVERVIEW ====== */}
+        {tab==="overview"&&<div style={{animation:"slideUp 0.4s"}}>
+          <div style={{background:T.bgCard,borderRadius:16,padding:18,border:`1px solid ${T.border}`,marginBottom:14,boxShadow:T.shadow}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:14}}><div style={{fontSize:15,fontWeight:700}}>🏆 Team Goals</div><div style={{display:"flex",gap:14,fontSize:13}}><span style={{color:"#059669",fontWeight:700}}>{fmtPrice(teamRev)}</span><span style={{color:"#6366f1",fontWeight:700}}>{teamPols} policies</span></div></div>
+            <div style={{display:"flex",gap:5,marginBottom:14}}>{TEAM_GOALS.map((g,i)=>{const ok=teamRev>=g.target;return <div key={i} style={{flex:1,textAlign:"center",padding:"10px 3px",background:ok?"#fffbeb":T.bgSubtle,borderRadius:10,border:ok?"1px solid #fde68a":`1px solid ${T.borderLight}`,opacity:ok?1:0.5}}><div style={{fontSize:20}}>{g.icon}</div><div style={{fontSize:9,fontWeight:700,color:ok?g.color:T.textMuted,marginTop:2}}>{g.name}</div><div style={{fontSize:9,color:T.textMuted}}>${g.target/1000}K</div></div>;})}</div>
+            {teamGoalTier.next&&<><div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:T.textSec,marginBottom:5}}><span>{teamGoalTier.current?`${teamGoalTier.current.icon} ${teamGoalTier.current.name}`:"🏁 Start"}</span><span>${(teamGoalTier.next.target-teamRev).toLocaleString()} to {teamGoalTier.next.name}</span></div><MiniBar value={teamRev} max={teamGoalTier.next.target} color="#f59e0b" height={9} T={T}/></>}
+          </div>
+          <DailyMotivation T={T}/>
+          <MessageBoard messages={messages} onExternalUpdate={handleExternalMessages} T={T}/>
+          <div className="ydi-stat-grid" style={{display:"grid",gridTemplateColumns:ctmData&&agentCTM?"repeat(5,1fr)":"repeat(4,1fr)",gap:10,marginBottom:14}}>
+            {[{l:"Premium",v:fmtPrice(rev),s:rTier.current?`${rTier.current.icon} ${rTier.current.name}`:"🏁 Unranked",c:"#059669"},{l:"Policies",v:pols,s:pTier.current?`${pTier.current.icon} ${pTier.current.name}`:"🏁 Start",c:agent?.color||"#6366f1"},{l:"Streak",v:`${streak.current}wk`,s:`Best: ${streak.best}wk`,c:"#d97706"},{l:"Badges",v:`${earned}/${badges.length}`,s:`${earned*250} XP`,c:"#7c3aed"},...(ctmData&&agentCTM?[{l:"Calls Ans.",v:agentCTM.answeredCalls||0,s:`${agentCTM.inboundLeads||0} inbound`,c:"#0891b2"}]:[])].map((c,i)=><div key={i} style={{background:T.bgCard,borderRadius:14,padding:"16px 12px",border:`1px solid ${T.border}`,position:"relative",overflow:"hidden",boxShadow:T.shadow}}><div style={{position:"absolute",top:0,left:0,right:0,height:3,background:c.c}}/><div style={{fontSize:10,color:T.textMuted,textTransform:"uppercase",letterSpacing:1.5,marginBottom:4}}>{c.l}</div><div style={{fontSize:22,fontWeight:900,marginBottom:2}}>{c.v}</div><div style={{fontSize:11,color:c.c,fontWeight:600}}>{c.s}</div></div>)}
+          </div>
+          <KPITrends agents={agents} selAgent={selAgent} periods={periods} selPeriodIdx={selPeriodIdx} T={T}/>
+          {ctmData&&<div style={{background:T.bgCard,borderRadius:16,padding:18,border:`1px solid #e0f2fe`,marginBottom:14,boxShadow:T.shadow}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+              <span style={{fontSize:18}}>📞</span>
+              <div style={{fontSize:15,fontWeight:700,color:"#0891b2"}}>CTM Live — Call Activity</div>
+              <span style={{fontSize:9,background:"#0891b2",color:"#fff",padding:"2px 8px",borderRadius:6,fontWeight:800,marginLeft:"auto"}}>● LIVE</span>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(agents.length,4)},1fr)`,gap:10}}>
+              {agents.map(a=>{
+                const aC=ctmData[a.name]||ctmData[a.name.split(" ")[0]]||null;
+                if(!aC)return null;
+                const answered=aC.answeredCalls||0;const inbound=aC.inboundLeads||0;const missed=aC.missedCalls||0;const total=aC.totalCalls||answered+missed;
+                const ansRate=total>0?Math.round((answered/total)*100):0;
+                return(
+                  <div key={a.id} style={{padding:"12px 14px",borderRadius:14,background:"#f0f9ff",border:`1px solid #bae6fd`}}>
+                    <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:8}}>
+                      <span style={{fontSize:20}}>{a.avatar}</span>
+                      <div style={{fontSize:12,fontWeight:700,color:a.color}}>{a.name.split(" ")[0]}</div>
+                    </div>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:5,marginBottom:8}}>
+                      <div style={{textAlign:"center",padding:"7px 4px",background:"#fff",borderRadius:8,border:"1px solid #e0f2fe"}}>
+                        <div style={{fontSize:18,fontWeight:900,color:"#059669"}}>{answered}</div>
+                        <div style={{fontSize:9,color:"#059669",fontWeight:700}}>Answered</div>
+                      </div>
+                      <div style={{textAlign:"center",padding:"7px 4px",background:"#fff",borderRadius:8,border:"1px solid #e0f2fe"}}>
+                        <div style={{fontSize:18,fontWeight:900,color:"#6366f1"}}>{inbound}</div>
+                        <div style={{fontSize:9,color:"#6366f1",fontWeight:700}}>Inbound</div>
+                      </div>
+                      {missed>0&&<div style={{textAlign:"center",padding:"7px 4px",background:"#fff",borderRadius:8,border:"1px solid #fee2e2"}}>
+                        <div style={{fontSize:18,fontWeight:900,color:"#ef4444"}}>{missed}</div>
+                        <div style={{fontSize:9,color:"#ef4444",fontWeight:700}}>Missed</div>
+                      </div>}
+                      {total>0&&<div style={{textAlign:"center",padding:"7px 4px",background:"#fff",borderRadius:8,border:"1px solid #e0f2fe"}}>
+                        <div style={{fontSize:18,fontWeight:900,color:"#0891b2"}}>{ansRate}%</div>
+                        <div style={{fontSize:9,color:"#0891b2",fontWeight:700}}>Ans. Rate</div>
+                      </div>}
+                    </div>
+                    {total>0&&<div><div style={{height:5,background:"#e0f2fe",borderRadius:3,overflow:"hidden"}}><div style={{width:`${ansRate}%`,height:"100%",background:"#059669",borderRadius:3,transition:"width 1.2s"}}/></div></div>}
+                  </div>
+                );
+              }).filter(Boolean)}
+            </div>
+          </div>}
+          <PolicyBreakdown breakdown={breakdown} totalPolicies={pols} totalRevenue={rev} color={agent?.color||"#6366f1"} T={T}/>
+          <div style={{background:T.bgCard,borderRadius:16,padding:18,border:`1px solid ${T.border}`,marginBottom:14,boxShadow:T.shadow}}>
+            <div style={{fontSize:15,fontWeight:700,marginBottom:14}}>🏅 Revenue Rank</div>
+            <div style={{display:"flex",gap:6,marginBottom:14}}>{revTiers.map((t,i)=>{const ok=rev>=t.target;return <div key={i} style={{flex:1,textAlign:"center",padding:"10px 3px",background:ok?`${agent?.color||"#6366f1"}08`:T.bgSubtle,borderRadius:10,border:ok?`1px solid ${agent?.color||"#6366f1"}33`:`1px solid ${T.borderLight}`,opacity:ok?1:0.4}}><div style={{fontSize:22}}>{t.icon}</div><div style={{fontSize:10,fontWeight:600,color:ok?agent?.color||"#6366f1":T.textMuted,marginTop:3}}>{t.name}</div><div style={{fontSize:9,color:T.textMuted}}>${t.target/1000}K</div></div>;})}</div>
+            {rTier.next&&<><div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:T.textSec,marginBottom:5}}><span>{rTier.current?.name||"Start"}</span><span>${(rTier.next.target-rev).toLocaleString()} to {rTier.next.name}</span></div><MiniBar value={rev} max={rTier.next.target} color={agent?.color||"#6366f1"} height={9} T={T}/></>}
+          </div>
+          {/* H2H */}
+          {(()=>{const maxRev=Math.max(...agents.map(a=>a.totalRevenue),1);const maxPol=Math.max(...agents.map(a=>a.totalPolicies),1);const rankOrder=[...agents].sort((a,b)=>b.totalRevenue-a.totalRevenue);
+          return <div style={{borderRadius:20,marginBottom:14,overflow:"hidden",boxShadow:"0 4px 24px rgba(0,0,0,0.10)"}}>
+            <div style={{background:"linear-gradient(135deg,#1a3c6e 0%,#6366f1 100%)",padding:"14px 20px",display:"flex",alignItems:"center",justifyContent:"space-between"}}><div style={{fontSize:16,fontWeight:900,color:"#fff",letterSpacing:1}}>⚔️ HEAD TO HEAD</div><div style={{fontSize:11,color:"#93c5fd",fontWeight:600}}>{curPeriod?.name||"All Time"}</div></div>
+            <div style={{background:T.bgCard,padding:16,display:"grid",gridTemplateColumns:`repeat(${agents.length},1fr)`,gap:10}}>
+              {rankOrder.map((a,rank)=>{
+                const aXP=calcXP(a.sales,ctmData?ctmData[a.name]||ctmData[a.name.split(" ")[0]]||null:null);
+                const aB=getBadges(a.sales).filter(x=>x.earned).length;
+                const aCTM=ctmData?ctmData[a.name]||ctmData[a.name.split(" ")[0]]||null:null;
+                const aBreak=getPolicyBreakdown(a.sales);
+                const isLeader=rank===0&&a.totalRevenue>0;
+                const revPct=maxRev>0?Math.min((a.totalRevenue/maxRev)*100,100):0;
+                const polPct=maxPol>0?Math.min((a.totalPolicies/maxPol)*100,100):0;
+                const medals=["👑","🥈","🥉","4️⃣"];
+                return <div key={a.id} style={{borderRadius:16,overflow:"hidden",border:isLeader?`2px solid ${a.color}`:`1px solid ${T.border}`,boxShadow:isLeader?`0 0 20px ${a.color}30`:"none"}}>
+                  <div style={{background:isLeader?`linear-gradient(135deg,${a.color},${a.color}cc)`:`${a.color}15`,padding:"14px 10px",textAlign:"center",position:"relative"}}>
+                    <div style={{position:"absolute",top:6,left:8,fontSize:16}}>{medals[rank]||""}</div>
+                    <div style={{fontSize:36,marginBottom:4}}>{a.avatar}</div>
+                    <div style={{fontSize:12,fontWeight:800,color:isLeader?"#fff":a.color}}>{a.name.split(" ")[0].toUpperCase()}</div>
+                    {isLeader&&<div style={{fontSize:8,background:"rgba(255,255,255,0.25)",color:"#fff",padding:"1px 8px",borderRadius:10,fontWeight:800,marginTop:3,display:"inline-block"}}>LEADER</div>}
+                  </div>
+                  <div style={{padding:"12px 10px",background:T.bgCard}}>
+                    <div style={{marginBottom:10}}><div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:T.textMuted,marginBottom:3}}><span>💰 PREMIUM</span><span style={{fontWeight:800,color:a.color}}>{fmtShort(a.totalRevenue)}</span></div><div style={{height:7,background:T.bgSubtle,borderRadius:4,overflow:"hidden"}}><div style={{width:`${revPct}%`,height:"100%",background:`linear-gradient(90deg,${a.color}88,${a.color})`,borderRadius:4,transition:"width 1.2s"}}/></div></div>
+                    <div style={{marginBottom:10}}><div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:T.textMuted,marginBottom:3}}><span>📋 POLICIES</span><span style={{fontWeight:800,color:a.color}}>{a.totalPolicies}</span></div><div style={{height:7,background:T.bgSubtle,borderRadius:4,overflow:"hidden"}}><div style={{width:`${polPct}%`,height:"100%",background:`linear-gradient(90deg,${a.color}88,${a.color})`,borderRadius:4,transition:"width 1.2s"}}/></div></div>
+                    <div style={{display:"flex",gap:4,justifyContent:"center",marginBottom:10,flexWrap:"wrap"}}>
+                      <div style={{padding:"3px 8px",borderRadius:8,background:"#eef2ff",fontSize:10,fontWeight:700,color:"#6366f1"}}>🏠 {aBreak.personal.count}</div>
+                      <div style={{padding:"3px 8px",borderRadius:8,background:"#fdf2f8",fontSize:10,fontWeight:700,color:"#db2777"}}>❤️ {aBreak.life.count}</div>
+                      <div style={{padding:"3px 8px",borderRadius:8,background:"#f0fdf4",fontSize:10,fontWeight:700,color:"#059669"}}>🏢 {aBreak.commercial.count}</div>
+                    </div>
+                    <div style={{display:"flex",gap:4}}>
+                      <div style={{flex:1,textAlign:"center",padding:"7px 4px",borderRadius:10,background:T.bgSubtle}}><div style={{fontSize:14,fontWeight:900,color:a.color}}>{(aXP/1000).toFixed(1)}K</div><div style={{fontSize:9,color:T.textMuted}}>XP</div></div>
+                      <div style={{flex:1,textAlign:"center",padding:"7px 4px",borderRadius:10,background:T.bgSubtle}}><div style={{fontSize:14,fontWeight:900,color:"#f59e0b"}}>{aB}</div><div style={{fontSize:9,color:T.textMuted}}>BADGES</div></div>
+                      {aCTM&&<div style={{flex:1,textAlign:"center",padding:"7px 4px",borderRadius:10,background:T.bgSubtle}}><div style={{fontSize:14,fontWeight:900,color:"#0891b2"}}>{aCTM.answeredCalls||0}</div><div style={{fontSize:9,color:T.textMuted}}>CALLS</div></div>}
+                    </div>
+                  </div>
+                </div>;
+              })}
+            </div>
+          </div>;})()}
+          <div style={{background:T.bgCard,borderRadius:16,padding:18,border:`1px solid ${T.border}`,boxShadow:T.shadow}}>
+            <div style={{fontSize:15,fontWeight:700,marginBottom:14}}>⚡ Recent Wins</div>
+            {sales.length===0?<div style={{textAlign:"center",padding:"28px 0",color:T.textMuted}}><div style={{fontSize:36,marginBottom:8}}>🚀</div><div style={{fontSize:14,fontWeight:600}}>No policies in this period yet!</div></div>
+            :[...sales].reverse().slice(0,6).map((s,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",borderRadius:12,marginBottom:6,background:T.bgSubtle,border:`1px solid ${T.borderLight}`}}>
+              <div style={{width:36,height:36,borderRadius:10,background:s.price>=5000?"#fef3c7":`${agent?.color||"#6366f1"}10`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>{s.price>=10000?"🐋":s.price>=5000?"💰":"✅"}</div>
+              <div style={{flex:1}}><div style={{fontSize:13,fontWeight:600}}>{(s.name||"").split(" - ")[0]}</div><div style={{fontSize:11,color:T.textMuted}}>{s.type} · {s.platform} · {s.boundDate}</div></div>
+              <div style={{textAlign:"right"}}><div style={{fontSize:15,fontWeight:800,color:s.price>=5000?"#b45309":"#059669"}}>{fmtPrice(s.price)}</div><div style={{fontSize:10,color:T.textMuted,background:categorizePolicy(s.type)==="life"?"#fdf2f8":categorizePolicy(s.type)==="commercial"?"#f0fdf4":"#eef2ff",padding:"2px 6px",borderRadius:4,marginTop:2}}>{categorizePolicy(s.type)==="life"?"❤️ Life":categorizePolicy(s.type)==="commercial"?"🏢 Comm":"🏠 PL"}</div></div>
+            </div>)}
+          </div>
+        </div>}
+
+
+        {/* ====== LEADERBOARD ====== */}
+        {tab==="leaderboard"&&<div style={{animation:"slideUp 0.4s"}}>
+          <RaceTrack agents={agents} field="totalRevenue" maxVal={maxTeamRev} icon="🏎️" title="🏎️ Premium Race" T={T}/>
+          <RaceTrack agents={agents} field="totalPolicies" maxVal={maxTeamPol} icon="🐴" title="🐴 Policy Derby" T={T}/>
+          {/* Revenue Rankings with Reviews + Challenge */}
+          <div style={{background:T.bgCard,borderRadius:16,padding:18,border:`1px solid ${T.border}`,marginBottom:14,boxShadow:T.shadow}}>
+            <div style={{fontSize:15,fontWeight:700,marginBottom:14}}>🏅 Revenue Rankings — {curPeriod?.name||"All Time"}</div>
+            {sorted.map((a,i)=>{
+              const tier=getTier(revTiers,a.totalRevenue),aXP=calcXP(a.sales,ctmData?ctmData[a.name]||ctmData[a.name.split(" ")[0]]||null:null),aLvl=getLevel(aXP),isMe=a.id===selAgent,aBreak=getPolicyBreakdown(a.sales);
+              const aRevs=a.sales.filter(s=>s.review&&String(s.review).trim()).length;
+              const canChallenge=a.id!==selAgent;
+              return(
+                <div key={a.id} style={{padding:"14px 16px",borderRadius:14,marginBottom:10,background:isMe?`${a.color}06`:T.bgSubtle,border:isMe?`2px solid ${a.color}33`:`1px solid ${T.borderLight}`}}>
+                  <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:8}}>
+                    <div style={{width:38,height:38,borderRadius:10,background:i===0?"linear-gradient(135deg,#fbbf24,#f59e0b)":i===1?"linear-gradient(135deg,#d1d5db,#9ca3af)":i===2?"linear-gradient(135deg,#d97706,#b45309)":T.bgSubtle,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{rankEmojis[i]||`${i+1}`}</div>
+                    <div onClick={()=>setSelAgent(a.id)} style={{width:44,height:44,borderRadius:12,background:`${a.color}10`,border:`2px solid ${a.color}33`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,cursor:"pointer",flexShrink:0}}>{a.avatar}</div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}><span style={{fontSize:14,fontWeight:700,color:isMe?a.color:T.text}}>{a.name}</span>{i===0&&a.totalRevenue>0&&<span style={{fontSize:9,background:"#f59e0b",color:"#fff",padding:"2px 8px",borderRadius:6,fontWeight:800}}>LEADER</span>}{aRevs>0&&<span style={{fontSize:9,background:"#fffbeb",color:"#b45309",padding:"2px 8px",borderRadius:6,fontWeight:700}}>⭐ {aRevs} review{aRevs>1?"s":""}</span>}</div>
+                      <div style={{display:"flex",gap:8,fontSize:11,color:T.textMuted,marginTop:2}}><span>Lvl {aLvl.current.level}</span><span>🏠{aBreak.personal.count}</span><span>❤️{aBreak.life.count}</span><span>🏢{aBreak.commercial.count}</span><span>{tier.current?`${tier.current.icon} ${tier.current.name}`:"—"}</span></div>
+                    </div>
+                    <div style={{textAlign:"right",flexShrink:0}}>
+                      <div style={{fontSize:18,fontWeight:900,color:i===0?"#b45309":T.text}}>{fmtPrice(a.totalRevenue)}</div>
+                      <div style={{fontSize:11,color:a.color,fontWeight:600}}>{aXP.toLocaleString()} XP</div>
+                    </div>
+                  </div>
+                  <div style={{marginBottom:8}}><MiniBar value={a.totalRevenue} max={maxTeamRev} color={a.color} height={5} T={T}/></div>
+                  {canChallenge&&<button onClick={()=>{setSelAgent(selAgent);setChallengeVs(a);setShowChallengeModal(true);}} style={{width:"100%",padding:"7px",borderRadius:10,border:`1px solid ${a.color}44`,background:`${a.color}08`,color:a.color,fontSize:12,fontWeight:700,cursor:"pointer"}}>⚔️ Challenge {a.name.split(" ")[0]}</button>}
+                </div>
+              );})}
+          </div>
+          {/* Reviews on leaderboard */}
+          <div style={{background:T.bgCard,borderRadius:16,padding:18,border:`1px solid ${T.border}`,marginBottom:14,boxShadow:T.shadow}}>
+            <div style={{fontSize:15,fontWeight:700,marginBottom:14}}>⭐ Reviews Leaderboard</div>
+            {[...agents].sort((a,b)=>b.sales.filter(s=>s.review&&String(s.review).trim()).length-a.sales.filter(s=>s.review&&String(s.review).trim()).length).map((a,i)=>{
+              const revs=a.sales.filter(s=>s.review&&String(s.review).trim());
+              const isLeader=i===0&&revs.length>0;
+              return <div key={a.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",borderRadius:12,marginBottom:6,background:isLeader?"#fffbeb":T.bgSubtle,border:isLeader?"1px solid #fde68a":`1px solid ${T.borderLight}`}}>
+                <span style={{fontSize:16}}>{i===0?"🥇":i===1?"🥈":i===2?"🥉":`${i+1}.`}</span>
+                <span style={{fontSize:22}}>{a.avatar}</span>
+                <div style={{flex:1}}><div style={{fontSize:13,fontWeight:700,color:a.color}}>{a.name.split(" ")[0]}</div><div style={{fontSize:11,color:T.textMuted}}>{fmtPrice(a.totalRevenue)} · {a.totalPolicies} policies</div></div>
+                <div style={{textAlign:"right"}}><div style={{fontSize:20,fontWeight:900,color:isLeader?"#b45309":T.textSec}}>⭐ {revs.length}</div><div style={{fontSize:10,color:T.textMuted}}>review{revs.length!==1?"s":""}</div></div>
+              </div>;})}
+          </div>
+          {/* Life Leader */}
+          <div style={{background:T.bgCard,borderRadius:16,padding:18,border:`1px solid ${T.border}`,marginBottom:14,boxShadow:T.shadow}}>
+            <div style={{fontSize:15,fontWeight:700,marginBottom:14}}>❤️ Life Sales Leader</div>
+            {lifeBoard.map((a,i)=><div key={a.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",borderRadius:12,marginBottom:6,background:i===0&&a.lifePrem>0?"#fdf2f8":T.bgSubtle,border:i===0&&a.lifePrem>0?"1px solid #fbcfe8":`1px solid ${T.borderLight}`}}><span style={{fontSize:20}}>{a.avatar}</span><div style={{flex:1}}><div style={{fontSize:13,fontWeight:700,color:a.color}}>{a.name.split(" ")[0]}</div><div style={{fontSize:11,color:T.textMuted}}>{a.lifeCount} life policies</div></div><div style={{fontSize:16,fontWeight:800,color:a.lifePrem>0?"#db2777":T.textMuted}}>{fmtPrice(a.lifePrem)}</div>{i===0&&a.lifePrem>0&&<span style={{fontSize:9,background:"#db2777",color:"#fff",padding:"2px 7px",borderRadius:4,fontWeight:700}}>LEADER</span>}</div>)}
+          </div>
+          {/* Active Challenges */}
+          {challenges.length>0&&<div style={{background:T.bgCard,borderRadius:16,padding:18,border:`2px solid #6366f144`,marginBottom:14,boxShadow:T.shadow}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+              <div style={{fontSize:15,fontWeight:700}}>⚔️ Active Challenges ({challenges.length})</div>
+              <button onClick={()=>deleteChallenge(challenges[challenges.length-1].id)} style={{fontSize:10,padding:"4px 8px",borderRadius:7,border:`1px solid ${T.border}`,background:T.bgSubtle,color:T.textMuted,cursor:"pointer"}}>Clear Last</button>
+            </div>
+            {challenges.map((c,ci)=>{
+              const fromA=agents.find(a=>a.id===c.fromId);
+              const toA=agents.find(a=>a.id===c.toId);
+              if(!fromA||!toA)return null;
+              const fromVal=getChallengeVal(fromA,c.metric);
+              const toVal=getChallengeVal(toA,c.metric);
+              const maxVal=Math.max(fromVal,toVal,1);
+              const fmtVal=v=>{if(c.metric==="totalRevenue")return fmtShort(v);return String(v);};
+              const fromWin=fromVal>toVal;const toWin=toVal>fromVal;const tied=fromVal===toVal;
+              return <div key={c.id} style={{padding:"14px 16px",borderRadius:14,marginBottom:ci<challenges.length-1?10:0,background:T.bgSubtle,border:`1px solid ${T.borderLight}`,animation:tied?"none":"challengePulse 3s infinite"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                  <span style={{fontSize:11,fontWeight:700,color:T.textSec}}>{c.metricLabel}</span>
+                  <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                    <span style={{fontSize:10,color:T.textMuted}}>{c.issued}</span>
+                    <button onClick={()=>deleteChallenge(c.id)} style={{fontSize:11,padding:"2px 6px",borderRadius:6,border:"none",background:"#fee2e2",color:"#dc2626",cursor:"pointer"}}>✕</button>
+                  </div>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr auto 1fr",gap:10,alignItems:"center"}}>
+                  <div style={{textAlign:"center"}}>
+                    <div style={{fontSize:28,marginBottom:3}}>{fromA.avatar}</div>
+                    <div style={{fontSize:12,fontWeight:700,color:fromA.color}}>{fromA.name.split(" ")[0]}</div>
+                    <div style={{fontSize:20,fontWeight:900,color:fromWin?"#059669":fromA.color,marginTop:3}}>{fmtVal(fromVal)}</div>
+                    {fromWin&&<div style={{fontSize:9,background:"#059669",color:"#fff",padding:"1px 7px",borderRadius:5,fontWeight:800,marginTop:2,display:"inline-block"}}>WINNING</div>}
+                    <div style={{marginTop:6}}><div style={{height:8,background:T.bgCard,borderRadius:4,overflow:"hidden"}}><div style={{width:`${(fromVal/maxVal)*100}%`,height:"100%",background:fromWin?"#059669":fromA.color,borderRadius:4,transition:"width 1s"}}/></div></div>
+                  </div>
+                  <div style={{fontSize:22,fontWeight:900,color:"#ef4444",textAlign:"center"}}>VS</div>
+                  <div style={{textAlign:"center"}}>
+                    <div style={{fontSize:28,marginBottom:3}}>{toA.avatar}</div>
+                    <div style={{fontSize:12,fontWeight:700,color:toA.color}}>{toA.name.split(" ")[0]}</div>
+                    <div style={{fontSize:20,fontWeight:900,color:toWin?"#059669":toA.color,marginTop:3}}>{fmtVal(toVal)}</div>
+                    {toWin&&<div style={{fontSize:9,background:"#059669",color:"#fff",padding:"1px 7px",borderRadius:5,fontWeight:800,marginTop:2,display:"inline-block"}}>WINNING</div>}
+                    <div style={{marginTop:6}}><div style={{height:8,background:T.bgCard,borderRadius:4,overflow:"hidden"}}><div style={{width:`${(toVal/maxVal)*100}%`,height:"100%",background:toWin?"#059669":toA.color,borderRadius:4,transition:"width 1s"}}/></div></div>
+                  </div>
+                </div>
+                {tied&&<div style={{textAlign:"center",fontSize:11,color:T.textMuted,marginTop:6,fontWeight:600}}>🤝 Tied — next policy wins!</div>}
+              </div>;
+            })}
+          </div>}
+          {/* CTM Leaderboard */}
+          <div style={{background:T.bgCard,borderRadius:16,padding:18,border:`1px solid ${T.border}`,boxShadow:T.shadow}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}><div style={{fontSize:15,fontWeight:700}}>📞 Call Leaderboard</div>{!CTM_WEB_APP_URL&&<span style={{fontSize:9,background:"#fef3c7",color:"#b45309",padding:"2px 8px",borderRadius:6,fontWeight:700}}>CTM_WEB_APP_URL NOT SET</span>}{ctmData&&<span style={{fontSize:9,background:"#dcfce7",color:"#059669",padding:"2px 8px",borderRadius:6,fontWeight:700}}>● LIVE</span>}</div>
+            {!ctmData?<div style={{textAlign:"center",padding:"28px 0",color:T.textMuted}}><div style={{fontSize:40,marginBottom:8}}>📞</div><div style={{fontSize:14,fontWeight:600}}>CTM Integration Pending</div></div>
+            :Object.entries(ctmData).sort((a,b)=>(b[1].answeredCalls||0)-(a[1].answeredCalls||0)).map(([name,stats],i)=>{const ag=agents.find(a=>a.name===name||a.name.startsWith(name))||{color:barColors[i],avatar:"👤"};return <div key={name} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",borderRadius:12,marginBottom:6,background:i===0?"#f0fdf4":T.bgSubtle,border:i===0?"1px solid #bbf7d0":`1px solid ${T.borderLight}`}}><span style={{fontSize:18}}>{["🥇","🥈","🥉","4️⃣"][i]||"·"}</span><span style={{fontSize:22}}>{ag.avatar}</span><div style={{flex:1}}><div style={{fontSize:13,fontWeight:700,color:ag.color}}>{name}</div><div style={{display:"flex",gap:10,fontSize:11,color:T.textMuted,marginTop:2}}><span>✅ {stats.answeredCalls||0} answered</span><span>📥 {stats.inboundLeads||0} inbound</span></div><div style={{marginTop:5}}><MiniBar value={stats.answeredCalls||0} max={Math.max(...Object.values(ctmData).map(s=>s.answeredCalls||0),1)} color={ag.color} height={5} T={T}/></div></div><div style={{textAlign:"right"}}><div style={{fontSize:14,fontWeight:800,color:ag.color}}>+{((stats.answeredCalls||0)*15+(stats.inboundLeads||0)*25).toLocaleString()} XP</div></div></div>;})}
+          </div>
+        </div>}
+
+
+        {/* ====== BADGES ====== */}
+        {tab==="achievements"&&<div style={{animation:"slideUp 0.4s"}}>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:16,padding:"14px 18px",background:T.bgCard,borderRadius:14,border:`1px solid ${T.border}`,boxShadow:T.shadow}}>
+            <div><span style={{fontSize:26,fontWeight:900}}>{earned}</span><span style={{fontSize:15,color:T.textMuted}}> / {badges.length} badges</span></div>
+            <div style={{fontSize:14,color:agent?.color||"#6366f1",fontWeight:700}}>{earned*250} XP earned</div>
+          </div>
+          <div className="ydi-badge-grid" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
+            {badges.map((b,i)=><div key={i} onMouseEnter={()=>setHoverBadge(i)} onMouseLeave={()=>setHoverBadge(null)} style={{padding:"16px 12px",borderRadius:14,textAlign:"center",background:b.earned?T.bgCard:T.bgSubtle,border:b.earned?`1px solid ${agent?.color||"#6366f1"}33`:`1px solid ${T.borderLight}`,opacity:b.earned?1:0.4,transform:hoverBadge===i?"translateY(-3px) scale(1.02)":"none",transition:"all 0.25s",cursor:"default",position:"relative",boxShadow:b.earned?T.shadow:"none"}}>
+              <div style={{fontSize:30,marginBottom:4,filter:b.earned?"none":"grayscale(1)"}}>{b.icon}</div>
+              <div style={{fontSize:11,fontWeight:700,color:b.earned?T.text:T.textMuted,marginBottom:2}}>{b.name}</div>
+              <div style={{fontSize:9,color:T.textMuted}}>{b.desc}</div>
+              {b.earned&&<div style={{position:"absolute",top:4,right:4,fontSize:8,background:"#059669",color:"#fff",padding:"2px 5px",borderRadius:4,fontWeight:700}}>+250</div>}
+            </div>)}
+          </div>
+        </div>}
+
+        {/* ====== GOALS TAB — BIGGER CIRCLES ====== */}
+        {tab==="goals"&&<div style={{animation:"slideUp 0.4s"}}>
+          <div style={{background:T.bgCard,borderRadius:16,padding:18,border:`1px solid ${T.border}`,marginBottom:14,boxShadow:T.shadow}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+              <div style={{fontSize:15,fontWeight:800}}>👥 Team Goals — {curPeriod?.name}</div>
+              {adminUnlocked&&<button onClick={()=>setShowTeamGoals(true)} style={{padding:"5px 12px",borderRadius:8,border:`1px solid ${T.border}`,background:T.bgSubtle,fontSize:12,cursor:"pointer",color:T.textSec}}>✏️ Edit</button>}
+            </div>
+            {[
+              {label:"💰 Premium",value:teamRev,goal:teamGoalsCfg.premium,fmt:fmtShort,color:"#f59e0b"},
+              {label:"🏠 Personal Lines",value:agents.reduce((s,a)=>s+getPolicyBreakdown(a.sales).personal.count,0),goal:teamGoalsCfg.personalLines,color:"#6366f1"},
+              {label:"❤️ Life Policies",value:agents.reduce((s,a)=>s+getPolicyBreakdown(a.sales).life.count,0),goal:teamGoalsCfg.life,color:"#db2777"},
+              {label:"🏢 Commercial",value:agents.reduce((s,a)=>s+getPolicyBreakdown(a.sales).commercial.count,0),goal:teamGoalsCfg.commercial,color:"#059669"},
+              {label:"📋 Total Policies",value:teamPols,goal:teamGoalsCfg.policies,color:"#6366f1"},
+            ].map((g,i)=>{
+              const pct=g.goal>0?Math.min((g.value/g.goal)*100,100):0;const done=pct>=100;
+              return <div key={i} style={{marginBottom:16}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                  <span style={{fontSize:14,fontWeight:700,color:done?"#059669":T.text}}>{g.label}</span>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <span style={{fontSize:14,fontWeight:800,color:done?"#059669":g.color}}>{g.fmt?g.fmt(g.value):g.value}</span>
+                    <span style={{fontSize:11,color:T.textMuted}}>/ {g.fmt?g.fmt(g.goal):g.goal}</span>
+                    <span style={{fontSize:11,fontWeight:700,color:done?"#059669":g.color,background:done?"#dcfce7":`${g.color}15`,padding:"3px 10px",borderRadius:8}}>{done?"✅ Done!":pct.toFixed(0)+"%"}</span>
+                  </div>
+                </div>
+                <div style={{height:12,background:T.bgSubtle,borderRadius:6,overflow:"hidden",position:"relative"}}>
+                  <div style={{width:`${pct}%`,height:"100%",background:done?"#059669":`linear-gradient(90deg,${g.color}88,${g.color})`,borderRadius:6,transition:"width 1.2s"}}/>
+                  {pct>8&&<div style={{position:"absolute",top:"50%",left:`${Math.min(pct-2,90)}%`,transform:"translateY(-50%)",fontSize:9,fontWeight:800,color:"#fff"}}>{pct.toFixed(0)}%</div>}
+                </div>
+              </div>;
+            })}
+          </div>
+          <div style={{fontSize:14,fontWeight:800,color:T.textSec,marginBottom:12}}>👤 Individual Goals — {curPeriod?.name}</div>
+          {agents.map(a=>{
+            const goals=a.goals||{premium:25000,policies:20,life:3,commercial:2,personalLines:15};
+            const aBreak=getPolicyBreakdown(a.sales);
+            const isMe=a.id===selAgent;
+            return <div key={a.id} onClick={()=>setSelAgent(a.id)} style={{background:T.bgCard,borderRadius:16,padding:18,border:isMe?`2px solid ${a.color}44`:`1px solid ${T.border}`,marginBottom:14,boxShadow:T.shadow,cursor:"pointer"}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+                <div style={{width:46,height:46,borderRadius:14,background:`${a.color}15`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:26}}>{a.avatar}</div>
+                <div style={{flex:1}}><div style={{fontSize:15,fontWeight:800,color:a.color}}>{a.name}</div><div style={{fontSize:11,color:T.textMuted}}>{curPeriod?.name} targets</div></div>
+                {adminUnlocked&&<button onClick={e=>{e.stopPropagation();setSelAgent(a.id);handleAdminClick();}} style={{padding:"5px 10px",borderRadius:8,border:`1px solid ${T.border}`,background:T.bgSubtle,fontSize:11,cursor:"pointer",color:T.textSec}}>✏️ Edit Goals</button>}
+              </div>
+              {/* DUAL-DATA CIRCLES: order = Premium, Pers.Lines, Life, Commercial, Policies */}
+              <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8}}>
+                {/* ── PREMIUM circle ── */}
+                {(()=>{const pct=goals.premium>0?Math.min((a.totalRevenue/goals.premium)*100,100):0;const done=pct>=100;const sz=100,r=40,circ=2*Math.PI*r,offset=circ-(pct/100)*circ;return(
+                  <div style={{textAlign:"center"}}>
+                    <div style={{position:"relative",width:sz,height:sz,margin:"0 auto 6px"}}>
+                      <svg width={sz} height={sz} viewBox={`0 0 ${sz} ${sz}`} style={{transform:"rotate(-90deg)"}}>
+                        <circle cx={sz/2} cy={sz/2} r={r} fill="none" stroke={T.bgSubtle} strokeWidth="7"/>
+                        <circle cx={sz/2} cy={sz/2} r={r} fill="none" stroke={done?"#059669":"#f59e0b"} strokeWidth="7" strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round" style={{transition:"stroke-dashoffset 1.2s ease"}}/>
+                      </svg>
+                      <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",textAlign:"center"}}>
+                        <div style={{fontSize:done?18:13,fontWeight:900,color:done?"#059669":"#f59e0b",lineHeight:1}}>{done?"✓":fmtShort(a.totalRevenue)}</div>
+                        {!done&&<div style={{fontSize:9,color:T.textMuted,marginTop:2}}>{pct.toFixed(0)}%</div>}
+                      </div>
+                    </div>
+                    <div style={{fontSize:10,fontWeight:700,color:"#f59e0b",textTransform:"uppercase",letterSpacing:0.5}}>Premium</div>
+                    <div style={{fontSize:9,color:T.textMuted}}>/{fmtShort(goals.premium)}</div>
+                  </div>);})()} 
+                {/* ── PERSONAL LINES: premium arc label + count inside ── */}
+                {(()=>{const count=aBreak.personal.count;const prem=aBreak.personal.premium;const pct=goals.personalLines>0?Math.min((count/goals.personalLines)*100,100):0;const done=pct>=100;const sz=100,r=40,circ=2*Math.PI*r,offset=circ-(pct/100)*circ;const col="#6366f1";return(
+                  <div style={{textAlign:"center"}}>
+                    <div style={{fontSize:11,fontWeight:800,color:col,marginBottom:3}}>{fmtShort(prem)}</div>
+                    <div style={{position:"relative",width:sz,height:sz,margin:"0 auto 6px"}}>
+                      <svg width={sz} height={sz} viewBox={`0 0 ${sz} ${sz}`} style={{transform:"rotate(-90deg)"}}>
+                        <circle cx={sz/2} cy={sz/2} r={r} fill="none" stroke={T.bgSubtle} strokeWidth="7"/>
+                        <circle cx={sz/2} cy={sz/2} r={r} fill="none" stroke={done?"#059669":col} strokeWidth="7" strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round" style={{transition:"stroke-dashoffset 1.2s ease"}}/>
+                      </svg>
+                      <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",textAlign:"center"}}>
+                        <div style={{fontSize:26,fontWeight:900,color:done?"#059669":col,lineHeight:1}}>{done?"✓":count}</div>
+                        <div style={{fontSize:9,color:T.textMuted,marginTop:1}}>{pct.toFixed(0)}%</div>
+                      </div>
+                    </div>
+                    <div style={{fontSize:10,fontWeight:700,color:col,textTransform:"uppercase",letterSpacing:0.5}}>🏠 Pers. Lines</div>
+                    <div style={{fontSize:9,color:T.textMuted}}>/{goals.personalLines} pol</div>
+                  </div>);})()} 
+                {/* ── LIFE: premium arc label + count inside ── */}
+                {(()=>{const count=aBreak.life.count;const prem=aBreak.life.premium;const pct=goals.life>0?Math.min((count/goals.life)*100,100):0;const done=pct>=100;const sz=100,r=40,circ=2*Math.PI*r,offset=circ-(pct/100)*circ;const col="#db2777";return(
+                  <div style={{textAlign:"center"}}>
+                    <div style={{fontSize:11,fontWeight:800,color:col,marginBottom:3}}>{fmtShort(prem)}</div>
+                    <div style={{position:"relative",width:sz,height:sz,margin:"0 auto 6px"}}>
+                      <svg width={sz} height={sz} viewBox={`0 0 ${sz} ${sz}`} style={{transform:"rotate(-90deg)"}}>
+                        <circle cx={sz/2} cy={sz/2} r={r} fill="none" stroke={T.bgSubtle} strokeWidth="7"/>
+                        <circle cx={sz/2} cy={sz/2} r={r} fill="none" stroke={done?"#059669":col} strokeWidth="7" strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round" style={{transition:"stroke-dashoffset 1.2s ease"}}/>
+                      </svg>
+                      <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",textAlign:"center"}}>
+                        <div style={{fontSize:26,fontWeight:900,color:done?"#059669":col,lineHeight:1}}>{done?"✓":count}</div>
+                        <div style={{fontSize:9,color:T.textMuted,marginTop:1}}>{pct.toFixed(0)}%</div>
+                      </div>
+                    </div>
+                    <div style={{fontSize:10,fontWeight:700,color:col,textTransform:"uppercase",letterSpacing:0.5}}>❤️ Life</div>
+                    <div style={{fontSize:9,color:T.textMuted}}>/{goals.life} pol</div>
+                  </div>);})()} 
+                {/* ── COMMERCIAL: premium arc label + count inside ── */}
+                {(()=>{const count=aBreak.commercial.count;const prem=aBreak.commercial.premium;const pct=goals.commercial>0?Math.min((count/goals.commercial)*100,100):0;const done=pct>=100;const sz=100,r=40,circ=2*Math.PI*r,offset=circ-(pct/100)*circ;const col="#059669";return(
+                  <div style={{textAlign:"center"}}>
+                    <div style={{fontSize:11,fontWeight:800,color:col,marginBottom:3}}>{fmtShort(prem)}</div>
+                    <div style={{position:"relative",width:sz,height:sz,margin:"0 auto 6px"}}>
+                      <svg width={sz} height={sz} viewBox={`0 0 ${sz} ${sz}`} style={{transform:"rotate(-90deg)"}}>
+                        <circle cx={sz/2} cy={sz/2} r={r} fill="none" stroke={T.bgSubtle} strokeWidth="7"/>
+                        <circle cx={sz/2} cy={sz/2} r={r} fill="none" stroke={done?"#059669":col} strokeWidth="7" strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round" style={{transition:"stroke-dashoffset 1.2s ease"}}/>
+                      </svg>
+                      <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",textAlign:"center"}}>
+                        <div style={{fontSize:26,fontWeight:900,color:done?"#059669":col,lineHeight:1}}>{done?"✓":count}</div>
+                        <div style={{fontSize:9,color:T.textMuted,marginTop:1}}>{pct.toFixed(0)}%</div>
+                      </div>
+                    </div>
+                    <div style={{fontSize:10,fontWeight:700,color:col,textTransform:"uppercase",letterSpacing:0.5}}>🏢 Commercial</div>
+                    <div style={{fontSize:9,color:T.textMuted}}>/{goals.commercial} pol</div>
+                  </div>);})()} 
+                {/* ── TOTAL POLICIES circle (last) ── */}
+                {(()=>{const pct=goals.policies>0?Math.min((a.totalPolicies/goals.policies)*100,100):0;const done=pct>=100;const sz=100,r=40,circ=2*Math.PI*r,offset=circ-(pct/100)*circ;return(
+                  <div style={{textAlign:"center"}}>
+                    <div style={{position:"relative",width:sz,height:sz,margin:"0 auto 6px"}}>
+                      <svg width={sz} height={sz} viewBox={`0 0 ${sz} ${sz}`} style={{transform:"rotate(-90deg)"}}>
+                        <circle cx={sz/2} cy={sz/2} r={r} fill="none" stroke={T.bgSubtle} strokeWidth="7"/>
+                        <circle cx={sz/2} cy={sz/2} r={r} fill="none" stroke={done?"#059669":a.color} strokeWidth="7" strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round" style={{transition:"stroke-dashoffset 1.2s ease"}}/>
+                      </svg>
+                      <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",textAlign:"center"}}>
+                        <div style={{fontSize:26,fontWeight:900,color:done?"#059669":a.color,lineHeight:1}}>{done?"✓":a.totalPolicies}</div>
+                        <div style={{fontSize:9,color:T.textMuted,marginTop:1}}>{pct.toFixed(0)}%</div>
+                      </div>
+                    </div>
+                    <div style={{fontSize:10,fontWeight:700,color:a.color,textTransform:"uppercase",letterSpacing:0.5}}>Total Pol.</div>
+                    <div style={{fontSize:9,color:T.textMuted}}>/{goals.policies}</div>
+                  </div>);})()} 
+              </div>
+              {/* CTM call stats — show when CTM data available */}
+              {ctmData&&(()=>{
+                const aC=ctmData[a.name]||ctmData[a.name.split(" ")[0]]||null;
+                if(!aC)return null;
+                const ans=aC.answeredCalls||0,inb=aC.inboundLeads||0,mis=aC.missedCalls||0,tot=aC.totalCalls||ans+mis;
+                const rate=tot>0?Math.round((ans/tot)*100):0;
+                return(
+                  <div style={{marginTop:14,padding:"10px 14px",borderRadius:12,background:"#f0f9ff",border:"1px solid #bae6fd",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+                    <div style={{fontSize:14,color:"#0891b2",fontWeight:700}}>📞 CTM</div>
+                    {[
+                      {label:"Answered",val:ans,color:"#059669"},
+                      {label:"Inbound",val:inb,color:"#6366f1"},
+                      ...(mis>0?[{label:"Missed",val:mis,color:"#ef4444"}]:[]),
+                      ...(tot>0?[{label:"Ans. Rate",val:`${rate}%`,color:"#0891b2"}]:[]),
+                    ].map((s,si)=>(
+                      <div key={si} style={{textAlign:"center",padding:"5px 12px",borderRadius:8,background:"#fff",border:"1px solid #e0f2fe",minWidth:60}}>
+                        <div style={{fontSize:16,fontWeight:900,color:s.color}}>{s.val}</div>
+                        <div style={{fontSize:9,color:"#0891b2",fontWeight:700}}>{s.label}</div>
+                      </div>
+                    ))}
+                    <div style={{flex:1,minWidth:80}}>
+                      {tot>0&&<><div style={{fontSize:9,color:"#0891b2",marginBottom:3}}>Answer Rate</div><div style={{height:5,background:"#e0f2fe",borderRadius:3,overflow:"hidden"}}><div style={{width:`${rate}%`,height:"100%",background:"#059669",borderRadius:3,transition:"width 1.2s"}}/></div></>}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>;
+          })}
+        </div>}
+
+
+        {/* ====== MISSIONS ====== */}
+        {tab==="missions"&&<div style={{animation:"slideUp 0.4s"}}>
+          {(()=>{
+            const now=new Date();const daysLeftInWeek=7-now.getDay();const daysInMonth=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();const daysLeftInMonth=daysInMonth-now.getDate();
+            const dailyMissions=[{id:"d1",icon:"📞",name:"Daily Dialer",desc:"10 calls today",xp:100,progress:agentCTM?.todayCalls||0,target:10,color:"#6366f1"},{id:"d2",icon:"✅",name:"Answer Machine",desc:"5 answered calls today",xp:150,progress:agentCTM?.answeredCalls||0,target:5,color:"#059669"},{id:"d3",icon:"📋",name:"Quote Grinder",desc:"Bind 1 policy today",xp:200,progress:sales.filter(s=>{const d=s.boundDateObj;const t=new Date();t.setHours(0,0,0,0);return d&&d>=t;}).length,target:1,color:"#d97706"}];
+            const weeklyMissions=[{id:"w1",icon:"🔥",name:"Call Blitz",desc:"50 calls this week",xp:300,progress:agentCTM?.weekCalls||0,target:50,color:"#ef4444"},{id:"w2",icon:"📥",name:"Inbound Hunter",desc:"10 inbound leads",xp:400,progress:agentCTM?.inboundLeads||0,target:10,color:"#7c3aed"},{id:"w3",icon:"🤝",name:"Closer of the Week",desc:"3 policies this week",xp:500,progress:(()=>{const ws=new Date();ws.setDate(ws.getDate()-ws.getDay());ws.setHours(0,0,0,0);return sales.filter(s=>s.boundDateObj&&s.boundDateObj>=ws).length;})(),target:3,color:"#0891b2"},{id:"w4",icon:"❤️",name:"Life Champion",desc:"1 life policy this week",xp:350,progress:(()=>{const ws=new Date();ws.setDate(ws.getDate()-ws.getDay());ws.setHours(0,0,0,0);return sales.filter(s=>s.boundDateObj&&s.boundDateObj>=ws&&categorizePolicy(s.type)==="life").length;})(),target:1,color:"#db2777"}];
+            const monthlyMissions=[{id:"m1",icon:"💰",name:"Premium Producer",desc:`$15K in premium`,xp:1000,progress:rev,target:15000,color:"#ca8a04",fmt:fmtShort},{id:"m2",icon:"📦",name:"Policy Machine",desc:"15 policies",xp:800,progress:pols,target:15,color:"#059669"},{id:"m3",icon:"🏢",name:"Commercial Crusher",desc:"3 commercial policies",xp:600,progress:commCount,target:3,color:"#1a3c6e"},{id:"m4",icon:"🤝",name:"Referral Royalty",desc:"2 referral deals",xp:500,progress:sales.filter(s=>s.referral).length,target:2,color:"#7c3aed"},{id:"m5",icon:"❤️",name:"Life Legend",desc:"3 life policies",xp:750,progress:lifeSales.length,target:3,color:"#db2777"},...(ctmData?[{id:"m6",icon:"📞",name:"Call Champion",desc:"100 answered calls",xp:1000,progress:agentCTM?.monthCalls||0,target:100,color:"#0891b2"}]:[])];
+            const teamMissions=[{id:"t1",icon:"🏆",name:"Team Gold Rush",desc:`Team hits $75K premium`,xp:500,progress:teamRev,target:75000,color:"#ca8a04",fmt:fmtShort,team:true},{id:"t2",icon:"🚀",name:"Policy Avalanche",desc:"Team binds 50 policies",xp:300,progress:teamPols,target:50,color:"#6366f1",team:true},...(ctmData?[{id:"t3",icon:"📞",name:"Call Blitz Team",desc:"Team hits 200 answered calls",xp:400,progress:Object.values(ctmData||{}).reduce((s,p)=>s+(p.answeredCalls||0),0),target:200,color:"#059669",team:true}]:[])];
+            const all=[...dailyMissions,...weeklyMissions,...monthlyMissions,...teamMissions];
+            const completed=all.filter(m=>m.progress>=m.target).length;
+            const totalXP=all.filter(m=>m.progress>=m.target).reduce((s,m)=>s+m.xp,0);
+            const RingProgress=({pct,color,size=72,done})=>{const r=28,circ=2*Math.PI*r,offset=circ-(pct/100)*circ;return <svg width={size} height={size} viewBox="0 0 64 64" style={{transform:"rotate(-90deg)",flexShrink:0}}><circle cx="32" cy="32" r={r} fill="none" stroke={done?"#dcfce7":T.bgSubtle} strokeWidth="5"/><circle cx="32" cy="32" r={r} fill="none" stroke={done?"#059669":color} strokeWidth="5" strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round" style={{transition:"stroke-dashoffset 1.2s ease"}}/><text x="32" y="37" textAnchor="middle" style={{transform:"rotate(90deg) translate(0px,-64px)",fontSize:12,fontWeight:800,fill:done?"#059669":color,fontFamily:"inherit"}}>{done?"✓":`${Math.round(pct)}%`}</text></svg>;};
+            const MissionCard=({m})=>{const pct=m.target>0?Math.min((m.progress/m.target)*100,100):0;const done=pct>=100;return <div style={{padding:"16px 18px",borderRadius:14,marginBottom:10,background:done?"#f0fdf4":T.bgCard,border:done?`2px solid #059669`:`1px solid ${T.border}`,boxShadow:T.shadow,position:"relative",display:"flex",alignItems:"center",gap:16}}>{done&&<div style={{position:"absolute",top:0,right:0,background:"#059669",color:"#fff",fontSize:10,fontWeight:800,padding:"3px 12px",borderRadius:"0 14px 0 8px"}}>COMPLETE ✓</div>}<div style={{position:"relative",flexShrink:0}}><RingProgress pct={pct} color={m.color} size={72} done={done}/><div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",fontSize:22,marginTop:1}}>{done?"":m.icon}</div></div><div style={{flex:1,minWidth:0}}><div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}><span style={{fontSize:14,fontWeight:700,color:done?"#059669":T.text}}>{m.name}</span>{m.team&&<span style={{fontSize:9,background:"#6366f1",color:"#fff",padding:"1px 6px",borderRadius:4,fontWeight:700}}>TEAM</span>}</div><div style={{fontSize:12,color:T.textMuted,marginBottom:6}}>{m.desc}</div><div style={{fontSize:11,color:T.textSec}}>{m.fmt?m.fmt(m.progress):m.progress} / {m.fmt?m.fmt(m.target):m.target}</div></div><div style={{textAlign:"center",flexShrink:0}}><div style={{fontSize:16,fontWeight:900,color:done?"#059669":m.color}}>+{m.xp}</div><div style={{fontSize:10,color:T.textMuted,fontWeight:700}}>XP</div></div></div>;};
+            return <>
+              <div style={{background:`linear-gradient(135deg,#1a3c6e,#6366f1)`,borderRadius:16,padding:"16px 22px",marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div><div style={{fontSize:17,fontWeight:800,color:"#fff"}}>🎯 Mission Control</div><div style={{fontSize:12,color:"#93c5fd",marginTop:2}}>{completed}/{all.length} complete · {totalXP.toLocaleString()} XP earned</div></div><div style={{textAlign:"right"}}><div style={{fontSize:12,color:"#93c5fd"}}>⏰ {daysLeftInMonth}d left in period</div><div style={{fontSize:12,color:"#93c5fd"}}>{daysLeftInWeek}d left this week</div></div></div>
+              <div style={{fontSize:13,fontWeight:800,color:T.textSec,marginBottom:8,display:"flex",alignItems:"center",gap:6}}><span style={{background:"#fef3c7",color:"#b45309",padding:"3px 10px",borderRadius:6,fontSize:11}}>⚡ DAILY</span></div>{dailyMissions.map(m=><MissionCard key={m.id} m={m}/>)}
+              <div style={{fontSize:13,fontWeight:800,color:T.textSec,marginBottom:8,marginTop:18,display:"flex",alignItems:"center",gap:6}}><span style={{background:"#ede9fe",color:"#7c3aed",padding:"3px 10px",borderRadius:6,fontSize:11}}>🔥 WEEKLY</span><span style={{color:T.textMuted,fontSize:11}}>{daysLeftInWeek} days left</span></div>{weeklyMissions.map(m=><MissionCard key={m.id} m={m}/>)}
+              <div style={{fontSize:13,fontWeight:800,color:T.textSec,marginBottom:8,marginTop:18,display:"flex",alignItems:"center",gap:6}}><span style={{background:"#dcfce7",color:"#059669",padding:"3px 10px",borderRadius:6,fontSize:11}}>🏆 PERIOD</span><span style={{color:T.textMuted,fontSize:11}}>{daysLeftInMonth} days left</span></div>{monthlyMissions.map(m=><MissionCard key={m.id} m={m}/>)}
+              <div style={{fontSize:13,fontWeight:800,color:T.textSec,marginBottom:8,marginTop:18,display:"flex",alignItems:"center",gap:6}}><span style={{background:"#dbeafe",color:"#1d4ed8",padding:"3px 10px",borderRadius:6,fontSize:11}}>👥 TEAM</span></div>{teamMissions.map(m=><MissionCard key={m.id} m={m}/>)}
+            </>;
+          })()}
+        </div>}
+
+        {/* ====== BREAKDOWN ====== */}
+        {tab==="breakdown"&&<div style={{display:"flex",flexDirection:"column",gap:14,animation:"slideUp 0.4s"}}>
+          {sales.length===0?<div style={{background:T.bgCard,borderRadius:16,padding:"40px 20px",border:`1px solid ${T.border}`,textAlign:"center"}}><div style={{fontSize:48,marginBottom:10}}>📭</div><div style={{fontSize:16,fontWeight:700,color:T.textMuted}}>No data in this period</div></div>
+          :<>{[{title:"📊 Premium by Type",data:typeBreak,fmt:v=>fmtPrice(v)},{title:"🌐 Policies by Platform",data:platBreak,fmt:v=>`${v} pol`}].map((sec,si)=><div key={si} style={{background:T.bgCard,borderRadius:16,padding:18,border:`1px solid ${T.border}`,boxShadow:T.shadow}}><div style={{fontSize:15,fontWeight:700,marginBottom:14}}>{sec.title}</div>{Object.entries(sec.data).sort(([,a],[,b])=>b-a).map(([k,v],i)=><div key={i} style={{marginBottom:12}}><div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:4}}><span style={{color:T.textSec,fontWeight:600}}>{k}</span><span style={{color:barColors[i%barColors.length],fontWeight:700}}>{sec.fmt(v)}</span></div><MiniBar value={v} max={Math.max(...Object.values(sec.data))} color={barColors[i%barColors.length]} T={T}/></div>)}</div>)}
+            <div style={{background:T.bgCard,borderRadius:16,padding:18,border:`1px solid ${T.border}`,boxShadow:T.shadow}}><div style={{fontSize:15,fontWeight:700,marginBottom:14}}>🏆 Top Deals</div>{[...sales].sort((a,b)=>b.price-a.price).slice(0,8).map((s,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",borderRadius:12,marginBottom:6,background:i===0?"#fffbeb":T.bgSubtle,border:i===0?"1px solid #fde68a":`1px solid ${T.borderLight}`}}><div style={{width:28,height:28,borderRadius:8,background:i===0?"#f59e0b":i===1?"#9ca3af":i===2?"#b45309":T.bgSubtle,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:800,color:i<3?"#fff":T.textMuted,flexShrink:0}}>{i+1}</div><div style={{flex:1}}><div style={{fontSize:13,fontWeight:600}}>{(s.name||"").split(" - ")[0]}</div><div style={{fontSize:10,color:T.textMuted}}>{s.type} · {categorizePolicy(s.type)==="life"?"❤️":categorizePolicy(s.type)==="commercial"?"🏢":"🏠"}</div></div><div style={{fontSize:16,fontWeight:800,color:i===0?"#b45309":T.text}}>{fmtPrice(s.price)}</div></div>)}</div></>}
+        </div>}
+
+        {/* ====== QUESTS ====== */}
+        {tab==="quests"&&<div style={{animation:"slideUp 0.4s"}}>
+          {(()=>{const quests=[{cat:"💰 Revenue",name:"$25K",progress:rev,target:25000,reward:"500 XP",icon:"💵"},{cat:"💰 Revenue",name:"$50K",progress:rev,target:50000,reward:"750 XP",icon:"🏅"},{cat:"💰 Revenue",name:"$75K",progress:rev,target:75000,reward:"1K XP",icon:"🔥"},{cat:"💰 Revenue",name:"$100K",progress:rev,target:100000,reward:"2K XP",icon:"👑"},{cat:"📋 Policies",name:"Bind 15",progress:pols,target:15,reward:"400 XP",icon:"📋"},{cat:"📋 Policies",name:"Bind 20",progress:pols,target:20,reward:"600 XP",icon:"📦"},{cat:"📋 Policies",name:"Bind 30",progress:pols,target:30,reward:"1K XP",icon:"🚀"},{cat:"🏢 Lines",name:"5 Commercial",progress:commCount,target:5,reward:"500 XP",icon:"🏢"},{cat:"🏢 Lines",name:"3 Life",progress:lifeSales.length,target:3,reward:"500 XP",icon:"❤️"},{cat:"🤝 Referrals",name:"3 Referrals",progress:sales.filter(s=>s.referral).length,target:3,reward:"750 XP",icon:"🤝"}];const cats=[...new Set(quests.map(q=>q.cat))];
+          return <>{<div style={{padding:"14px 18px",marginBottom:16,background:`${agent?.color||"#6366f1"}06`,borderRadius:14,border:`1px solid ${agent?.color||"#6366f1"}22`}}><div style={{fontSize:15,fontWeight:700,marginBottom:3}}>⚔️ Quest Board — {agent?.name?.split(" ")[0]}</div><div style={{fontSize:12,color:T.textSec}}>{quests.filter(q=>q.progress>=q.target).length}/{quests.length} completed</div></div>}
+          {cats.map(cat=>{const cq=quests.filter(q=>q.cat===cat);return <div key={cat} style={{marginBottom:16}}><div style={{fontSize:13,fontWeight:700,color:T.textSec,marginBottom:8}}>{cat}</div>{cq.map((q,i)=>{const pct=q.target>0?Math.min((q.progress/q.target)*100,100):0,done=pct>=100;return <div key={i} style={{padding:"14px 16px",borderRadius:12,marginBottom:8,background:done?"#f0fdf4":T.bgCard,border:done?"1px solid #bbf7d0":`1px solid ${T.border}`,boxShadow:T.shadow}}><div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}><div style={{width:36,height:36,borderRadius:10,background:done?"#dcfce7":`${agent?.color||"#6366f1"}08`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>{done?"✅":q.icon}</div><div style={{flex:1}}><div style={{fontSize:13,fontWeight:700,color:done?"#059669":T.text}}>{q.name}</div><div style={{fontSize:10,color:T.textMuted}}>Reward: {q.reward}</div></div><div style={{fontSize:13,fontWeight:800,color:done?"#059669":agent?.color||"#6366f1"}}>{pct.toFixed(0)}%</div></div><MiniBar value={q.progress} max={q.target} color={done?"#059669":agent?.color||"#6366f1"} height={5} T={T}/><div style={{display:"flex",justifyContent:"space-between",marginTop:3,fontSize:10,color:T.textMuted}}><span>{q.progress>100?`$${q.progress.toLocaleString()}`:q.progress}/{q.target>100?`$${q.target.toLocaleString()}`:q.target}</span>{done&&<span style={{color:"#059669",fontWeight:700}}>DONE!</span>}</div></div>;})}</div>;})}</>;}  )()}
+        </div>}
+
+        {/* ====== REVIEWS ====== */}
+        {tab==="reviews"&&<div style={{animation:"slideUp 0.4s"}}>
+          <div className="ydi-review-grid" style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(agents.length,4)},1fr)`,gap:12,marginBottom:18}}>
+            {agents.map(a=>{const revs=a.sales.filter(s=>s.review&&String(s.review).trim()),aBreak=getPolicyBreakdown(a.sales);return(
+              <div key={a.id} style={{background:T.bgCard,borderRadius:16,padding:18,border:`1px solid ${T.border}`,boxShadow:T.shadow,textAlign:"center"}}>
+                <div style={{fontSize:30,marginBottom:5}}>{a.avatar}</div>
+                <div style={{fontSize:13,fontWeight:700,color:a.color,marginBottom:8}}>{a.name.split(" ")[0]}</div>
+                <div style={{fontSize:18,fontWeight:900,color:"#059669",marginBottom:2}}>{fmtShort(a.totalRevenue)}</div>
+                <div style={{fontSize:12,color:T.textMuted,marginBottom:8}}>{a.totalPolicies} policies</div>
+                <div style={{display:"flex",justifyContent:"center",gap:8,fontSize:11,color:T.textMuted,marginBottom:10}}>
+                  <span>🏠{aBreak.personal.count}</span><span>❤️{aBreak.life.count}</span><span>🏢{aBreak.commercial.count}</span>
+                </div>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:5}}><span style={{fontSize:20}}>⭐</span><span style={{fontSize:18,fontWeight:900}}>{revs.length}</span><span style={{fontSize:11,color:T.textMuted}}>reviews</span></div>
+              </div>);})}
+          </div>
+          <div style={{background:T.bgCard,borderRadius:16,padding:18,border:`1px solid ${T.border}`,boxShadow:T.shadow}}>
+            <div style={{fontSize:15,fontWeight:700,marginBottom:14}}>⭐ All Reviews ({allReviews.length})</div>
+            {allReviews.length===0?<div style={{textAlign:"center",padding:"36px 0",color:T.textMuted}}><div style={{fontSize:40,marginBottom:8}}>💬</div><div style={{fontSize:14,fontWeight:600}}>No reviews yet.</div><div style={{fontSize:12,marginTop:4}}>Add a "Reviews" column to your spreadsheet and enter customer feedback there.</div></div>
+            :allReviews.map((r,i)=><div key={i} style={{padding:"14px 16px",borderRadius:14,marginBottom:10,background:T.bgSubtle,border:`1px solid ${T.borderLight}`}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+                <span style={{fontSize:22}}>{r.agentAvatar}</span>
+                <div style={{flex:1}}><div style={{fontSize:13,fontWeight:700,color:r.agentColor}}>{r.agentName}</div><div style={{fontSize:11,color:T.textMuted}}>{r.name} · {r.type} · {fmtPrice(r.price)} · {r.boundDate}</div></div>
+                <span style={{fontSize:18}}>⭐</span>
+              </div>
+              <div style={{fontSize:13,color:T.textSec,fontStyle:"italic",lineHeight:1.6,padding:"4px 0 0 32px"}}>"{r.review}"</div>
+            </div>)}
+          </div>
+        </div>}
+
+        {/* FOOTER */}
+        <div style={{marginTop:22,padding:"14px 18px",background:T.bgCard,borderRadius:14,border:`1px solid ${T.border}`,display:"flex",justifyContent:"space-between",fontSize:11,color:T.textMuted,flexWrap:"wrap",gap:6}}>
+          <span>📡 {agents.length} Producers · {fmtPrice(teamRev)} · {teamPols} policies</span>
+          <span>{curPeriod?.name||"All Time"} · {agent?.name} · #{rankOf} · {earned}/{badges.length} Badges</span>
+          <span style={{color:"#6366f1",fontWeight:700}}>v15.0 — YDI Battle Royale</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
