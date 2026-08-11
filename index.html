@@ -261,6 +261,45 @@ const csvByGid  = (id, gid)  => `https://docs.google.com/spreadsheets/d/${id}/ex
 const csvByName = (id, name) => `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(name)}`;
 const csvFirst  = id         => `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv`;
 
+/* The backend reads producer sheets with its own credentials and caches the
+   result, so the sheets themselves can stay private to the domain. CSV is kept
+   as a fallback for when the backend is unreachable. */
+async function fetchSnapshot(log) {
+  if (!hasBackend()) return null;
+  const r = await api("getSnapshot");
+  if (!r.ok || !Array.isArray(r.snapshot)) {
+    log("Snapshot unavailable — falling back to reading sheets directly", "warn");
+    return null;
+  }
+  const total = r.snapshot.reduce((a, p) => a + (p.sales || []).length, 0);
+  if (!total) {
+    log("Snapshot is empty — falling back to reading sheets directly", "warn");
+    return null;
+  }
+  const age = r.builtAt ? Math.round((Date.now() - new Date(r.builtAt)) / 60000) : null;
+  log(`Snapshot loaded — ${total} policies${age != null ? `, built ${age} min ago` : ""}`, "ok");
+  return r.snapshot;
+}
+
+function salesFromSnapshot(rows) {
+  return (rows || []).map(s => {
+    const bound = toDate(s.boundDate);
+    return {
+      name: String(s.name || "").trim() || "Unknown",
+      status: String(s.status || "Bound").trim(),
+      price: Number(s.price) || 0,
+      boundDate: fmtDate(bound),
+      boundOn: bound,
+      effectiveDate: String(s.effectiveDate || "").trim(),
+      type: String(s.type || "Other").trim() || "Other",
+      platform: String(s.platform || "Unknown").trim() || "Unknown",
+      policyNumber: String(s.policyNumber || "").trim(),
+      leadSource: String(s.leadSource || "").trim(),
+      review: String(s.review || "").trim(),
+    };
+  }).filter(s => s.name && s.price > 0);
+}
+
 async function fetchProducerSales(producer, periods, log) {
   const id = producer.sheetId;
   if (!id) { log(`${producer.name}: no sheet ID set`, "warn"); return []; }
@@ -281,6 +320,12 @@ async function fetchProducerSales(producer, periods, log) {
     catch (e) { return { rows: [], why: "CSV parse failed: " + e.message }; }
 
     const headers = (parsed.meta && parsed.meta.fields) || [];
+
+    // The lead pipeline is not production. Reject it on the Lead ID column so a
+    // renamed tab cannot slip quoted premiums onto the leaderboard.
+    if (headers.some(h => /^\s*lead\s*id\s*$/i.test(h)))
+      return { rows: [], why: "lead pipeline tab — skipped, not production data" };
+
     const map = buildFieldMap(headers);
     if (!map.name || !map.price) {
       return { rows: [], why: `no ${!map.name ? "name" : "price"} column found. Headers: [${headers.join(" | ")}]` };
@@ -318,7 +363,15 @@ async function fetchProducerSales(producer, periods, log) {
   const jobs = [
     { url: csvByGid(id, producer.gid || "0"), label: `gid ${producer.gid || 0}` },
     { url: csvFirst(id), label: "first tab" },
-    ...periods.map(p => ({ url: csvByName(id, p.name), label: `tab "${p.name}"` })),
+    // "first tab" may now be Current Leads. readCsv rejects it on the Lead ID
+    // column, so a quoted premium can never be scored as a bound policy.
+    // Tab names come in two shapes: the display name and the slash-stripped
+    // version the sheet template uses ("7/18-8/19/2026" -> "718-8192026").
+    ...periods.flatMap(p => {
+      const bare = p.name.replace(/[\/\\\[\]\*\?:]/g, "");
+      const names = bare === p.name ? [p.name] : [p.name, bare];
+      return names.map(n => ({ url: csvByName(id, n), label: `tab "${n}"` }));
+    }),
     ...["0","1","2","3","4","5"].filter(g => g !== String(producer.gid))
         .map(g => ({ url: csvByGid(id, g), label: `gid ${g}` })),
   ];
@@ -331,6 +384,32 @@ async function fetchProducerSales(producer, periods, log) {
 
   log(`${producer.name}: ${out.length} policies loaded`, out.length ? "ok" : "err");
   return out;
+}
+
+/* ── Backend API ──────────────────────────────────────────────────────
+   Posted as text/plain so the browser treats it as a simple request and
+   skips the CORS preflight that Apps Script cannot answer. */
+
+const hasBackend = () => /^https:\/\//.test(CONFIG.backendUrl || "");
+
+async function api(action, payload = {}) {
+  if (!hasBackend()) return { ok:false, error:"No backend URL is set in CONFIG yet." };
+  try {
+    const res = await fetch(CONFIG.backendUrl, {
+      method: "POST", redirect: "follow",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action, ...payload }),
+    });
+    const text = await res.text();
+    try { return JSON.parse(text.replace(/^\uFEFF/, "").trim()); }
+    catch (e) {
+      const m = text.match(/\{[\s\S]*\}/);
+      if (m) { try { return JSON.parse(m[0]); } catch (e2) {} }
+      return { ok:false, error:"The backend replied with something unreadable. Check it is deployed with access set to Anyone." };
+    }
+  } catch (e) {
+    return { ok:false, error:"Could not reach the backend: " + e.message };
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -908,66 +987,207 @@ function MessagesModal({ messages, onSave, onClose, T }) {
 
 /* ── Manage producers ─────────────────────────────────────────────────── */
 
-function ProducersModal({ producers, periods, onSave, onClose, T }) {
+/* Add flow: name + email -> backend builds the sheet -> link with copy + email.
+   The admin never opens a spreadsheet and never edits this file. */
+function AddProducerFlow({ onDone, onCancel, T, existingCount }) {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [avatar, setAvatar] = useState("🧑‍💼");
+  const [color, setColor] = useState(PALETTE[existingCount % PALETTE.length]);
+  const [autoEmail, setAutoEmail] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [done, setDone] = useState(null);
+  const [copied, setCopied] = useState(false);
+
+  const create = async () => {
+    if (!name.trim()) return setErr("Enter the producer's name.");
+    if (email.trim() && !email.includes("@")) return setErr("That email address doesn't look right.");
+    setBusy(true); setErr("");
+    const r = await api("createProducer", {
+      name: name.trim(), email: email.trim(), avatar, color,
+      sendEmail: autoEmail && email.trim() ? "true" : "false",
+    });
+    setBusy(false);
+    if (r.ok) setDone(r);
+    else setErr(r.error || "The sheet could not be created.");
+  };
+
+  const copyLink = () => {
+    const url = done.sheetUrl;
+    if (navigator.clipboard) navigator.clipboard.writeText(url).then(() => setCopied(true), () => setCopied(false));
+    else {
+      const t = document.createElement("textarea");
+      t.value = url; document.body.appendChild(t); t.select();
+      try { document.execCommand("copy"); setCopied(true); } catch (e) {}
+      document.body.removeChild(t);
+    }
+    setTimeout(() => setCopied(false), 2500);
+  };
+
+  const mailto = () => {
+    const subject = encodeURIComponent("Your YDI sales log is ready");
+    const body = encodeURIComponent(
+      `Hi ${firstName(done.producer.name)},\n\n` +
+      `Your sales log for the Battle Royale is set up. Log every bound policy here:\n\n${done.sheetUrl}\n\n` +
+      `The current folio (${done.liveTab}) is the first tab, marked green. Fill in a row as soon as you bind — ` +
+      `a row counts once it has a name and a premium above $0, so leave the premium blank on quotes.\n\n` +
+      `Your numbers reach the leaderboard within about five minutes of saving.`);
+    window.open(`mailto:${encodeURIComponent(done.producer.email || "")}?subject=${subject}&body=${body}`, "_blank");
+  };
+
+  /* Success panel */
+  if (done) return <div style={{ animation:"rise .3s" }}>
+    <div style={{ textAlign:"center", padding:"10px 0 18px" }}>
+      <div style={{ fontSize:46, marginBottom:8 }}>🎉</div>
+      <div className="display" style={{ fontSize:26 }}>{done.producer.name} is set up</div>
+      <div style={{ fontSize:13, color:T.muted, marginTop:5 }}>
+        {done.tabs.length} folio tabs · live folio <b style={{ color:GREEN }}>{done.liveTab}</b> is first
+        {done.emailed ? " · welcome email sent" : ""}
+      </div>
+    </div>
+
+    <div style={{ padding:"15px 17px", borderRadius:14, background:GREEN+"0d", border:`1px solid ${GREEN}44`, marginBottom:14 }}>
+      <div style={{ fontSize:11, fontWeight:800, color:GREEN, letterSpacing:1, marginBottom:7 }}>THEIR SALES LOG</div>
+      <div style={{ fontSize:12, color:T.text2, wordBreak:"break-all", background:T.card, padding:"10px 12px",
+        borderRadius:9, border:`1px solid ${T.line}`, marginBottom:10, fontFamily:"ui-monospace,Menlo,monospace" }}>
+        {done.sheetUrl}
+      </div>
+      <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+        <button onClick={copyLink} style={{ ...btn(T, copied ? "go" : "primary"), flex:1, minWidth:130 }}>
+          {copied ? "✓ Link copied" : "📋 Copy link"}
+        </button>
+        <a href={done.sheetUrl} target="_blank" rel="noreferrer" style={{ ...btn(T), flex:1, minWidth:130,
+          textAlign:"center", textDecoration:"none", display:"inline-block" }}>Open sheet ↗</a>
+        {done.producer.email && <button onClick={mailto} style={{ ...btn(T,"go"), flex:1, minWidth:130 }}>✉️ Email it to them</button>}
+      </div>
+    </div>
+
+    {done.emailed && <div style={{ padding:"11px 14px", borderRadius:11, background:INDIGO+"0b",
+      border:`1px solid ${INDIGO}33`, fontSize:12, color:T.text2, marginBottom:12 }}>
+      A welcome email with the link and instructions already went to <b>{done.producer.email}</b>. Use
+      “Email it to them” only if you want to send your own note as well.
+    </div>}
+
+    {!!(done.warnings || []).length && <div style={{ padding:"11px 14px", borderRadius:11, background:"#fff7ed",
+      border:"1px solid #fed7aa", fontSize:12, color:"#9a3412", marginBottom:12 }}>
+      {done.warnings.map((w, i) => <div key={i}>⚠️ {w}</div>)}
+    </div>}
+
+    <div style={{ padding:"11px 14px", borderRadius:11, background:T.sub, fontSize:12, color:T.text2, lineHeight:1.6, marginBottom:14 }}>
+      They already have edit access. Nothing else needs setting up — their numbers appear on the
+      leaderboard within about five minutes of their first saved row.
+    </div>
+
+    <button onClick={() => onDone(done.producers)} style={{ ...btn(T,"primary"), width:"100%", padding:13 }}>Done</button>
+  </div>;
+
+  /* Entry form */
+  return <div>
+    <div style={{ fontSize:13, color:T.text2, lineHeight:1.65, marginBottom:16 }}>
+      This builds their Google Sheet, sets up every folio tab, shares it with them, and hands you the link.
+    </div>
+
+    <div style={{ marginBottom:12 }}>
+      <div style={{ fontSize:11, fontWeight:800, color:T.muted, letterSpacing:1, marginBottom:5 }}>PRODUCER NAME</div>
+      <input value={name} autoFocus onChange={e => { setName(e.target.value); setErr(""); }}
+        onKeyDown={e => e.key === "Enter" && create()}
+        placeholder="e.g. Marcus Webb" style={{ ...input(T), fontSize:15 }}/>
+    </div>
+
+    <div style={{ marginBottom:12 }}>
+      <div style={{ fontSize:11, fontWeight:800, color:T.muted, letterSpacing:1, marginBottom:5 }}>THEIR GOOGLE EMAIL</div>
+      <input value={email} onChange={e => { setEmail(e.target.value); setErr(""); }}
+        onKeyDown={e => e.key === "Enter" && create()}
+        placeholder="name@youngdouglasinsurance.com" style={{ ...input(T), fontSize:15 }}/>
+      <div style={{ fontSize:11, color:T.muted, marginTop:5 }}>
+        Gives them edit access. Leave blank to create the sheet now and share it yourself later.
+      </div>
+    </div>
+
+    <div style={{ display:"flex", gap:12, alignItems:"center", marginBottom:12, flexWrap:"wrap" }}>
+      <div>
+        <div style={{ fontSize:11, fontWeight:800, color:T.muted, letterSpacing:1, marginBottom:5 }}>AVATAR</div>
+        <select value={avatar} onChange={e => setAvatar(e.target.value)}
+          style={{ ...input(T), width:"auto", fontSize:20 }}>
+          {AVATARS.map(a => <option key={a} value={a}>{a}</option>)}
+        </select>
+      </div>
+      <div>
+        <div style={{ fontSize:11, fontWeight:800, color:T.muted, letterSpacing:1, marginBottom:5 }}>COLOR</div>
+        <input type="color" value={color} onChange={e => setColor(e.target.value)}
+          style={{ width:52, height:40, border:"none", borderRadius:9, cursor:"pointer", background:"none" }}/>
+      </div>
+      <div style={{ flex:1, minWidth:180, alignSelf:"flex-end" }}>
+        <label style={{ display:"flex", gap:9, alignItems:"flex-start", padding:"11px 13px", borderRadius:11,
+          background: email.trim() ? T.sub : "transparent", border:`1px solid ${T.line}`,
+          cursor: email.trim() ? "pointer" : "default", opacity: email.trim() ? 1 : .45 }}>
+          <input type="checkbox" checked={autoEmail && !!email.trim()} disabled={!email.trim()}
+            onChange={e => setAutoEmail(e.target.checked)} style={{ marginTop:2 }}/>
+          <span style={{ fontSize:12, color:T.text2 }}>
+            <b style={{ color:T.text }}>Send them a welcome email</b><br/>Link plus how to log a policy.
+          </span>
+        </label>
+      </div>
+    </div>
+
+    {err && <div style={{ padding:"11px 14px", borderRadius:11, background:RED+"10", border:`1px solid ${RED}44`,
+      fontSize:12, color:RED, fontWeight:700, marginBottom:12 }}>{err}</div>}
+
+    {busy && <div style={{ padding:"12px 15px", borderRadius:11, background:GREEN+"0d", border:`1px solid ${GREEN}44`,
+      fontSize:13, color:GREEN, fontWeight:700, marginBottom:12 }}>
+      <span style={{ display:"inline-block", animation:"spin 1s linear infinite", marginRight:9 }}>⏳</span>
+      Building the spreadsheet and folio tabs… this takes about 15 seconds.
+    </div>}
+
+    <div style={{ display:"flex", gap:10 }}>
+      <button onClick={onCancel} disabled={busy} style={{ ...btn(T), flex:1, padding:13, opacity: busy ? .5 : 1 }}>Cancel</button>
+      <button onClick={create} disabled={busy} style={{ ...btn(T,"go"), flex:2, padding:13, opacity: busy ? .6 : 1 }}>
+        {busy ? "Creating…" : "Create their sales log"}
+      </button>
+    </div>
+  </div>;
+}
+
+function ProducersModal({ producers, onSave, onClose, T }) {
   const [rows, setRows] = useState(producers.map(p => ({ ...p })));
-  const [busy, setBusy] = useState({});
-  const [note, setNote] = useState({});
+  const [adding, setAdding] = useState(false);
   const [confirm, setConfirm] = useState(null);
   const [revoke, setRevoke] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState("");
 
   const set = (i, f, v) => setRows(r => r.map((x, j) => j === i ? { ...x, [f]: v } : x));
 
-  const add = () => setRows([...rows, {
-    id:"p_" + Date.now(), name:"", email:"", avatar:"🧑‍💼",
-    color: PALETTE[rows.length % PALETTE.length], gid:"", sheetId:"", sheetUrl:"",
-    sound:"chime", goals:{ ...DEFAULT_GOALS }, isNew:true,
-  }]);
-
-  const provision = async i => {
-    const p = rows[i];
-    if (!p.name.trim()) return setNote(n => ({ ...n, [i]:"Add a name first." }));
-    if (!p.email || !p.email.includes("@")) return setNote(n => ({ ...n, [i]:"Add their Google email so they can be given edit access." }));
-    if (!CONFIG.sheetCreatorUrl) return setNote(n => ({ ...n, [i]:"No sheetCreatorUrl in CONFIG. Deploy the Apps Script, then paste its /exec URL." }));
-    if (busy[i]) return;
-
-    setBusy(b => ({ ...b, [i]:true }));
-    setNote(n => ({ ...n, [i]:"Creating spreadsheet and folio tabs…" }));
-    try {
-      const qs = new URLSearchParams({ action:"createSheet", name:p.name.trim(), email:p.email.trim(),
-        periods: JSON.stringify(periods.map(x => ({ name:x.name, start:x.start, end:x.end }))) });
-      const res = await fetch(`${CONFIG.sheetCreatorUrl}?${qs}`, { redirect:"follow" });
-      const text = await res.text();
-      let data = null;
-      try { data = JSON.parse(text.replace(/^\uFEFF/, "").trim()); }
-      catch (e) { const m = text.match(/\{[\s\S]*\}/); if (m) { try { data = JSON.parse(m[0]); } catch (e2) {} } }
-
-      if (data && data.success) {
-        setRows(r => r.map((x, j) => j === i
-          ? { ...x, sheetId:data.sheetId, gid:String(data.gid), sheetUrl:data.url, isNew:false } : x));
-        setNote(n => ({ ...n, [i]:`Ready — ${(data.tabs||[]).length} folio tabs, shared with ${p.email}.` }));
-      } else {
-        setNote(n => ({ ...n, [i]: data && data.error ? "Not created: " + data.error
-          : "The script replied with something unexpected. Check it's deployed with access set to Anyone." }));
-      }
-    } catch (e) {
-      setNote(n => ({ ...n, [i]:"Couldn't reach the script: " + e.message }));
-    }
-    setBusy(b => ({ ...b, [i]:false }));
-  };
-
   const remove = async () => {
-    const { index, p } = confirm;
-    if (revoke && p.sheetId && CONFIG.sheetCreatorUrl) {
-      try { await fetch(`${CONFIG.sheetCreatorUrl}?action=removeProducer&sheetId=${encodeURIComponent(p.sheetId)}`); } catch (e) {}
-    }
-    setRows(r => r.filter((_, j) => j !== index));
+    const p = confirm.p;
+    setBusy(true);
+    const r = await api("removeProducer", { id:p.id, revoke: revoke ? "true" : "false" });
+    setBusy(false);
     setConfirm(null);
+    if (r.ok) { setRows(r.producers.map(x => ({ ...x }))); onSave(r.producers, { silent:true }); setNote(`${p.name} removed.`); }
+    else setNote(r.error || "Could not remove that producer.");
   };
+
+  const save = async () => {
+    setBusy(true);
+    const r = await api("saveProducers", { producers: rows });
+    setBusy(false);
+    if (r.ok) { onSave(r.producers); onClose(); }
+    else setNote(r.error || "Could not save. Your changes are still here — try again.");
+  };
+
+  if (adding) return <Modal onClose={() => setAdding(false)} T={T} width={560}>
+    <ModalHead title="➕ Add a producer" onClose={() => setAdding(false)} T={T}/>
+    <AddProducerFlow T={T} existingCount={rows.length}
+      onCancel={() => setAdding(false)}
+      onDone={list => { setRows(list.map(x => ({ ...x }))); onSave(list, { silent:true }); setAdding(false); }}/>
+  </Modal>;
 
   if (confirm) return <Modal onClose={() => setConfirm(null)} T={T} width={430}>
     <div style={{ textAlign:"center" }}>
       <div style={{ fontSize:40, marginBottom:10 }}>{confirm.p.avatar}</div>
-      <div className="display" style={{ fontSize:22, marginBottom:6 }}>Remove {confirm.p.name || "this producer"}?</div>
+      <div className="display" style={{ fontSize:22, marginBottom:6 }}>Remove {confirm.p.name}?</div>
       <p style={{ fontSize:13, color:T.text2, lineHeight:1.65, marginBottom:16 }}>
         They come off the dashboard, leaderboards, and goal rollups. Their spreadsheet stays in Drive — nothing is deleted.
       </p>
@@ -980,90 +1200,82 @@ function ProducersModal({ producers, periods, onSave, onClose, T }) {
       </label>}
       <div style={{ display:"flex", gap:10 }}>
         <button onClick={() => setConfirm(null)} style={{ ...btn(T), flex:1, padding:12 }}>Keep them</button>
-        <button onClick={remove} style={{ ...btn(T,"danger"), flex:1, padding:12 }}>Remove producer</button>
+        <button onClick={remove} disabled={busy} style={{ ...btn(T,"danger"), flex:1, padding:12, opacity: busy ? .6 : 1 }}>
+          {busy ? "Removing…" : "Remove producer"}
+        </button>
       </div>
     </div>
   </Modal>;
 
   return <Modal onClose={onClose} T={T} width={720}>
     <ModalHead title="👥 Manage producers" onClose={onClose} T={T}
-      sub="Adding someone builds their sales log automatically — one tab per period, columns already matched."/>
-    {rows.map((p, i) => {
-      const msg = note[i];
-      const bad = msg && /Not created|Couldn't|No sheetCreatorUrl|unexpected|Add a|Add their/.test(msg);
-      return <div key={p.id} style={{ padding:14, borderRadius:14, marginBottom:10,
-        background: p.isNew ? GREEN + "0b" : T.sub, border:`1px solid ${p.isNew ? GREEN + "44" : T.line}` }}>
-        {p.isNew && <div style={{ fontSize:10, fontWeight:800, color:GREEN, marginBottom:8, letterSpacing:1 }}>NEW PRODUCER</div>}
-        <div style={{ display:"flex", gap:8, marginBottom:8, alignItems:"center" }}>
-          <input value={p.name} onChange={e => set(i,"name",e.target.value)}
-            onBlur={() => { if (p.isNew && !p.sheetId && p.name.trim() && (p.email||"").includes("@")) provision(i); }}
-            placeholder="Producer name" style={{ ...input(T), background:T.card }}/>
-          <select value={p.avatar} onChange={e => set(i,"avatar",e.target.value)}
-            style={{ ...input(T), width:"auto", fontSize:18, background:T.card }}>
-            {AVATARS.map(a => <option key={a} value={a}>{a}</option>)}
-          </select>
-          <input type="color" value={p.color} onChange={e => set(i,"color",e.target.value)} title="Producer color"
-            style={{ width:38, height:38, border:"none", borderRadius:9, cursor:"pointer", background:"none" }}/>
-          <button onClick={() => setConfirm({ index:i, p })} title="Remove"
-            style={{ ...btn(T,"danger"), padding:"9px 11px" }}>🗑</button>
+      sub="Adding someone builds their sales log, shares it, and gives you the link to send."/>
+
+    {!hasBackend() && <div style={{ padding:"12px 15px", borderRadius:12, background:"#fff7ed",
+      border:"1px solid #fed7aa", fontSize:12, color:"#9a3412", marginBottom:14, lineHeight:1.6 }}>
+      <b>No backend connected.</b> Deploy the Apps Script and paste its /exec URL into CONFIG.backendUrl.
+      Until then producers can only be linked by hand.
+    </div>}
+
+    <button onClick={() => setAdding(true)} disabled={!hasBackend()}
+      style={{ ...btn(T,"go"), width:"100%", padding:14, marginBottom:16, fontSize:14, opacity: hasBackend() ? 1 : .45 }}>
+      ➕ Add a producer
+    </button>
+
+    {note && <div style={{ padding:"10px 13px", borderRadius:10, background:T.sub, fontSize:12,
+      color:T.text2, marginBottom:12, fontWeight:600 }}>{note}</div>}
+
+    {!rows.length && <div style={{ textAlign:"center", padding:"26px 0", color:T.muted }}>
+      <div style={{ fontSize:36, marginBottom:8 }}>👥</div>
+      <div style={{ fontSize:13, fontWeight:600 }}>No producers yet.</div>
+    </div>}
+
+    {rows.map((p, i) => <div key={p.id} style={{ padding:14, borderRadius:14, marginBottom:10,
+      background:T.sub, border:`1px solid ${T.line}` }}>
+      <div style={{ display:"flex", gap:8, marginBottom:9, alignItems:"center" }}>
+        <input value={p.name} onChange={e => set(i,"name",e.target.value)}
+          style={{ ...input(T), background:T.card, fontWeight:600 }}/>
+        <select value={p.avatar} onChange={e => set(i,"avatar",e.target.value)}
+          style={{ ...input(T), width:"auto", fontSize:18, background:T.card }}>
+          {AVATARS.map(a => <option key={a} value={a}>{a}</option>)}
+        </select>
+        <input type="color" value={p.color} onChange={e => set(i,"color",e.target.value)} title="Producer color"
+          style={{ width:38, height:38, border:"none", borderRadius:9, cursor:"pointer", background:"none" }}/>
+        <button onClick={() => setConfirm({ p })} title="Remove producer"
+          style={{ ...btn(T,"danger"), padding:"9px 11px" }}>🗑</button>
+      </div>
+
+      {p.sheetId && <div style={{ display:"flex", gap:10, alignItems:"center", flexWrap:"wrap", padding:"9px 13px",
+        borderRadius:11, background:GREEN+"12", border:`1px solid ${GREEN}44`, marginBottom:9 }}>
+        <span style={{ fontSize:12, color:GREEN, fontWeight:800 }}>✓ Sheet linked</span>
+        {p.email && <span style={{ fontSize:11, color:T.muted }}>{p.email}</span>}
+        {p.sheetUrl && <a href={p.sheetUrl} target="_blank" rel="noreferrer"
+          style={{ fontSize:11, color:GREEN, fontWeight:700 }}>Open sheet ↗</a>}
+        <a href={csvByGid(p.sheetId, p.gid || 0)} target="_blank" rel="noreferrer"
+          style={{ fontSize:11, color:INDIGO, fontWeight:700 }}>Test CSV feed ↗</a>
+        {p.sheetUrl && <button onClick={() => { if (navigator.clipboard) navigator.clipboard.writeText(p.sheetUrl); setNote("Link copied for " + firstName(p.name) + "."); }}
+          style={{ ...btn(T), padding:"4px 11px", fontSize:11, marginLeft:"auto" }}>Copy link</button>}
+      </div>}
+
+      <div style={{ padding:"11px 13px", background:T.card, borderRadius:11, border:`1px solid ${T.line}` }}>
+        <div style={{ fontSize:10, fontWeight:800, color:T.muted, marginBottom:8, letterSpacing:1 }}>PERIOD GOALS</div>
+        <div className="grid5">
+          {[["premium","Premium $"],["policies","Policies"],["personalLines","Pers. Lines"],["life","Life"],["commercial","Commercial"]].map(([f,label]) =>
+            <div key={f}>
+              <div style={{ fontSize:9, color:T.muted, marginBottom:3 }}>{label}</div>
+              <input type="number" value={(p.goals || {})[f] ?? ""}
+                onChange={e => set(i,"goals",{ ...(p.goals||{}), [f]:Number(e.target.value) })}
+                style={{ ...input(T), padding:"6px 8px", fontSize:11 }}/>
+            </div>)}
         </div>
-        <input value={p.email || ""} onChange={e => set(i,"email",e.target.value)}
-          onBlur={() => { if (p.isNew && !p.sheetId && p.name.trim() && (p.email||"").includes("@")) provision(i); }}
-          placeholder="Google email — grants them edit access to their sheet"
-          style={{ ...input(T), background:T.card, fontSize:12, marginBottom:9 }}/>
+      </div>
+    </div>)}
 
-        {busy[i] ? <div style={{ padding:"10px 14px", borderRadius:11, background:GREEN+"10", border:`1px solid ${GREEN}44`,
-            fontSize:12, color:GREEN, fontWeight:700, marginBottom:9 }}>
-            <span style={{ display:"inline-block", animation:"spin 1s linear infinite", marginRight:8 }}>⏳</span>Creating spreadsheet and folio tabs…
-          </div>
-        : p.sheetId ? <div style={{ display:"flex", gap:10, alignItems:"center", flexWrap:"wrap", padding:"9px 13px",
-            borderRadius:11, background:GREEN+"12", border:`1px solid ${GREEN}44`, marginBottom:9 }}>
-            <span style={{ fontSize:12, color:GREEN, fontWeight:800 }}>✓ Sheet linked</span>
-            {p.sheetUrl && <a href={p.sheetUrl} target="_blank" rel="noreferrer" style={{ fontSize:11, color:GREEN, fontWeight:700 }}>Open sheet ↗</a>}
-            <a href={csvByGid(p.sheetId, p.gid || 0)} target="_blank" rel="noreferrer" style={{ fontSize:11, color:INDIGO, fontWeight:700 }}>Test CSV feed ↗</a>
-          </div>
-        : <button onClick={() => provision(i)} style={{ ...btn(T,"go"), width:"100%", padding:11, marginBottom:9 }}>
-            📄 Create sales log for {p.name.trim() || "this producer"}
-          </button>}
-
-        {msg && <div style={{ fontSize:11, marginBottom:9, fontWeight:700, color: bad ? RED : GREEN }}>{msg}</div>}
-
-        <details style={{ marginBottom:9 }}>
-          <summary style={{ fontSize:11, color:T.muted, cursor:"pointer", fontWeight:700 }}>Advanced — link an existing sheet</summary>
-          <div style={{ display:"flex", gap:8, marginTop:9, flexWrap:"wrap" }}>
-            <input value={p.sheetId || ""} onChange={e => set(i,"sheetId",e.target.value)} placeholder="Sheet ID"
-              style={{ ...input(T), background:T.card, fontSize:11, flex:3, minWidth:150 }}/>
-            <input value={p.gid || ""} onChange={e => set(i,"gid",e.target.value)} placeholder="GID"
-              style={{ ...input(T), background:T.card, fontSize:11, flex:1, minWidth:80 }}/>
-            <select value={p.sound} onChange={e => set(i,"sound",e.target.value)} style={{ ...input(T), background:T.card, width:"auto", fontSize:12 }}>
-              {SOUNDS.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-            <button onClick={() => playSound(p.sound)} style={{ ...btn(T), padding:"7px 10px" }}>▶</button>
-          </div>
-        </details>
-
-        <div style={{ padding:"11px 13px", background:T.card, borderRadius:11, border:`1px solid ${T.line}` }}>
-          <div style={{ fontSize:10, fontWeight:800, color:T.muted, marginBottom:8, letterSpacing:1 }}>PERIOD GOALS</div>
-          <div className="grid5">
-            {[["premium","Premium $"],["policies","Policies"],["personalLines","Pers. Lines"],["life","Life"],["commercial","Commercial"]].map(([f,label]) =>
-              <div key={f}>
-                <div style={{ fontSize:9, color:T.muted, marginBottom:3 }}>{label}</div>
-                <input type="number" value={(p.goals || {})[f] ?? ""} onChange={e => set(i,"goals",{ ...(p.goals||{}), [f]:Number(e.target.value) })}
-                  style={{ ...input(T), padding:"6px 8px", fontSize:11 }}/>
-              </div>)}
-          </div>
-        </div>
-      </div>;
-    })}
-    <button onClick={add} style={{ ...btn(T,"go"), width:"100%", padding:12, marginBottom:14 }}>+ Add producer</button>
-    <div style={{ display:"flex", gap:10 }}>
-      <button onClick={onClose} style={{ ...btn(T), flex:1, padding:12 }}>Cancel</button>
-      <button onClick={() => {
-        const keep = rows.filter(p => p.name.trim() && p.sheetId);
-        const lost = rows.length - keep.length;
-        if (lost && !window.confirm(`${lost} producer${lost === 1 ? "" : "s"} without a linked sheet won't be saved. Continue?`)) return;
-        onSave(keep.map(({ isNew, ...p }) => p)); onClose();
-      }} style={{ ...btn(T,"primary"), flex:1, padding:12 }}>Save producers</button>
+    <div style={{ display:"flex", gap:10, marginTop:6 }}>
+      <button onClick={onClose} style={{ ...btn(T), flex:1, padding:12 }}>Close</button>
+      <button onClick={save} disabled={busy} style={{ ...btn(T,"primary"), flex:1, padding:12, opacity: busy ? .6 : 1 }}>
+        {busy ? "Saving…" : "Save changes"}
+      </button>
     </div>
   </Modal>;
 }
@@ -1077,6 +1289,8 @@ function App() {
   const [dark, setDark] = useState(() => load("dark", false));
   const [producersCfg, setProducersCfg] = useState(() => {
     // Self-healing: pinned sheet IDs from source always win over cached config.
+    // Seeds the four originals on a fresh browser. Once the backend answers,
+    // its roster replaces this entirely.
     let cfg = load("producers", null);
     if (!Array.isArray(cfg) || !cfg.length) cfg = DEFAULT_PRODUCERS;
     cfg = cfg.map(p => {
@@ -1084,7 +1298,6 @@ function App() {
       return { ...p, id, name: p.id === "stephanie" ? "A'ja" : p.name,
         sheetId: SHEET_IDS[id] || p.sheetId || "", goals: { ...DEFAULT_GOALS, ...(p.goals || {}) } };
     });
-    DEFAULT_PRODUCERS.forEach(d => { if (!cfg.some(p => p.id === d.id)) cfg.push({ ...d }); });
     save("producers", cfg);
     return cfg;
   });
@@ -1139,13 +1352,58 @@ function App() {
     setTimeout(() => setCheer(null), 6500);
   }, [period, launch]);
 
+  /* ── Cloud config ──────────────────────────────────────────────────
+     The backend is the source of truth for the roster, so a producer added
+     on one machine shows up for everyone without anyone editing this file. */
+  const [cloud, setCloud] = useState({ state: hasBackend() ? "loading" : "off", error:"" });
+  const [leads, setLeads] = useState(null);
+
+  const pullLeadStatus = useCallback(async () => {
+    if (!hasBackend()) return;
+    const r = await api("leadStatus");
+    setLeads(r.ok ? r : { error: r.error || "Lead sync is not responding. Check that the lead sync file is in the Apps Script project." });
+  }, []);
+
+  const pullConfig = useCallback(async () => {
+    if (!hasBackend()) { setCloud({ state:"off", error:"" }); return null; }
+    setCloud(c => ({ ...c, state:"loading" }));
+    const r = await api("getConfig");
+    if (!r.ok) { setCloud({ state:"error", error:r.error || "Backend unreachable." }); addLog("Backend: " + (r.error || "unreachable"), "warn"); return null; }
+
+    if (Array.isArray(r.producers) && r.producers.length) {
+      const merged = r.producers.map(p => ({ ...p, goals:{ ...DEFAULT_GOALS, ...(p.goals || {}) } }));
+      setProducersCfg(merged); save("producers", merged);
+      setWhoId(w => merged.some(p => p.id === w) ? w : merged[0].id);
+    }
+    if (Array.isArray(r.periods) && r.periods.length) {
+      setPeriods(r.periods); save("periods", r.periods);
+      setPinnedPeriod(pin => { if (!pin) setPeriodIdx(currentPeriodIndex(r.periods)); return pin; });
+    }
+    if (r.teamGoals) { setTeamGoals(r.teamGoals); save("teamGoals", r.teamGoals); }
+
+    setCloud({ state:"ok", error:"" });
+    addLog(`Backend connected — ${(r.producers || []).length} producers, ${(r.periods || []).length} folios`, "ok");
+    return r;
+  }, [addLog]);
+
   /* ── Fetch ─────────────────────────────────────────────────────────── */
   const syncAll = useCallback(async () => {
     addLog("Sync started", "info");
     const results = [];
-    for (const p of producersCfg) {
-      const sales = await fetchProducerSales(p, periods, addLog);
-      results.push({ ...p, allSales: sales });
+
+    const snap = await fetchSnapshot(addLog);
+    if (snap) {
+      const byId = {};
+      snap.forEach(x => { byId[x.id] = x; });
+      for (const p of producersCfg) {
+        const hit = byId[p.id] || snap.find(x => x.name === p.name);
+        results.push({ ...p, allSales: hit ? salesFromSnapshot(hit.sales) : [] });
+      }
+    } else {
+      for (const p of producersCfg) {
+        const sales = await fetchProducerSales(p, periods, addLog);
+        results.push({ ...p, allSales: sales });
+      }
     }
     setRaw(results);
     setLastSync(new Date());
@@ -1165,7 +1423,10 @@ function App() {
     } catch (e) { addLog("CTM unreachable: " + e.message, "warn"); }
   }, [addLog]);
 
-  useEffect(() => { syncAll(); syncCtm(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => {
+    (async () => { await pullConfig(); syncAll(); syncCtm(); pullLeadStatus(); })();
+    /* eslint-disable-next-line */
+  }, []);
   useEffect(() => { const t = setInterval(() => syncAll(), CONFIG.refreshMs); return () => clearInterval(t); }, [syncAll]);
   useEffect(() => {
     if (pinnedPeriod) return;
@@ -1173,7 +1434,12 @@ function App() {
     return () => clearInterval(t);
   }, [periods, pinnedPeriod]);
 
-  const refresh = async () => { setBusy(true); await Promise.all([syncAll(), syncCtm()]); setBusy(false); };
+  const refresh = async () => {
+    setBusy(true);
+    await pullConfig();
+    await Promise.all([syncAll(), syncCtm()]);
+    setBusy(false);
+  };
 
   /* ── Derived ───────────────────────────────────────────────────────── */
   const producers = useMemo(() => raw.map(p => {
@@ -1230,9 +1496,14 @@ function App() {
 
   /* ── Persistence helpers ───────────────────────────────────────────── */
   const persist = {
-    producers: v => { setProducersCfg(v); save("producers", v); setTimeout(() => syncAll(), 250); },
-    periods:   v => { setPeriods(v); save("periods", v); if (!pinnedPeriod) setPeriodIdx(currentPeriodIndex(v)); },
-    teamGoals: v => { setTeamGoals(v); save("teamGoals", v); },
+    producers: (v, opts) => {
+      setProducersCfg(v); save("producers", v);
+      if (!(opts && opts.silent)) api("saveProducers", { producers: v });
+      setTimeout(() => syncAll(), 250);
+    },
+    periods:   v => { setPeriods(v); save("periods", v); api("savePeriods", { periods: v });
+                      if (!pinnedPeriod) setPeriodIdx(currentPeriodIndex(v)); },
+    teamGoals: v => { setTeamGoals(v); save("teamGoals", v); api("saveTeamGoals", { teamGoals: v }); },
     messages:  v => { setMessages(v); save("messages", v); },
     dark:      v => { setDark(v); save("dark", v); },
     meId:      v => { setMeId(v); save("meId", v); if (v) setWhoId(v); },
@@ -1302,7 +1573,7 @@ function App() {
     {/* ── Modals ── */}
     {modal?.gate && <PasswordGate T={T} onClose={() => setModal(null)}
       onPass={() => { unlockAdmin(); setModal(modal.gate === "adminTab" ? null : modal.gate); if (modal.gate === "adminTab") setTab("admin"); }}/>}
-    {modal === "producers" && <ProducersModal producers={producersCfg} periods={periods} T={T}
+    {modal === "producers" && <ProducersModal producers={producersCfg} T={T}
       onSave={persist.producers} onClose={() => setModal(null)}/>}
     {modal === "periods" && <PeriodsModal periods={periods} T={T} onSave={persist.periods} onClose={() => setModal(null)}/>}
     {modal === "teamGoals" && <TeamGoalsModal goals={teamGoals} T={T} onSave={persist.teamGoals} onClose={() => setModal(null)}/>}
@@ -1967,6 +2238,31 @@ function App() {
           <button onClick={unlockAdmin} style={btn(T, adminLeft < 60 ? "danger" : "go")}>Extend 5 min</button>
         </Card>
 
+        <Card T={T} style={{ marginBottom:14,
+          background: cloud.state === "ok" ? GREEN + "0a" : cloud.state === "error" ? RED + "0a" : T.card,
+          borderColor: cloud.state === "ok" ? GREEN + "44" : cloud.state === "error" ? RED + "44" : T.border }}>
+          <SectionTitle T={T} right={<button onClick={pullConfig} style={{ ...btn(T), padding:"6px 12px", fontSize:12 }}>Re-check</button>}>
+            {cloud.state === "ok" ? "✅ Backend connected" : cloud.state === "loading" ? "⏳ Checking backend…"
+              : cloud.state === "error" ? "⚠️ Backend not responding" : "⚙️ Backend not set up"}
+          </SectionTitle>
+          {cloud.state === "ok" && <div style={{ fontSize:12, color:T.text2, lineHeight:1.7 }}>
+            The producer roster, folio periods, and team goals all live on the backend, so every browser
+            sees the same setup. Adding a producer builds their sheet and shares it automatically —
+            nothing here needs a file edit.
+          </div>}
+          {cloud.state === "error" && <div style={{ fontSize:12, color:T.text2, lineHeight:1.7 }}>
+            <div style={{ color:RED, fontWeight:700, marginBottom:6 }}>{cloud.error}</div>
+            Check the deployment is set to <b>Execute as: Me</b> and <b>Who has access: Anyone</b>. After
+            changing either, deploy a new version — editing an existing deployment does not always take.
+            The dashboard is still running on its last known setup.
+          </div>}
+          {cloud.state === "off" && <div style={{ fontSize:12, color:T.text2, lineHeight:1.7 }}>
+            Paste your Apps Script <b>/exec</b> URL into <code>CONFIG.backendUrl</code> near the top of
+            index.html. That is the only code edit anyone ever needs to make — after it, producers are
+            added from this screen.
+          </div>}
+        </Card>
+
         <Card T={T} style={{ marginBottom:14 }}>
           <SectionTitle T={T}>Quick actions</SectionTitle>
           <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
@@ -1975,6 +2271,48 @@ function App() {
               <button key={key} onClick={() => setModal(key)} style={{ padding:"11px 18px", borderRadius:11, cursor:"pointer",
                 fontSize:13, fontWeight:700, border:`1px solid ${c}44`, background:c + "0d", color:c }}>{label}</button>)}
           </div>
+        </Card>
+
+        <Card T={T} style={{ marginBottom:14 }}>
+          <SectionTitle T={T} right={<div style={{ display:"flex", gap:8 }}>
+            <button onClick={async () => { setBusy(true); const r = await api("syncLeads");
+              addLog(r.ok ? `Lead sync: ${JSON.stringify(r.stats)}` : "Lead sync failed: " + r.error, r.ok ? "ok" : "err");
+              await pullLeadStatus(); await refresh(); setBusy(false); }}
+              disabled={busy} style={{ ...btn(T,"primary"), padding:"6px 12px", fontSize:12 }}>
+              {busy ? "Working…" : "Sync leads now"}
+            </button>
+            <button onClick={pullLeadStatus} style={{ ...btn(T), padding:"6px 12px", fontSize:12 }}>Refresh</button>
+          </div>}>
+            Lead pipeline
+          </SectionTitle>
+          {!leads ? <div style={{ fontSize:12, color:T.muted }}>
+            Not checked yet — press Refresh. If nothing comes back, the lead sync file may not be added to the Apps Script project.
+          </div> : leads.error ? <div style={{ fontSize:12, color:RED, lineHeight:1.6 }}>
+            {leads.error}
+          </div> : <>
+            <div className="grid3" style={{ marginBottom:12 }}>
+              {[{ l:"Leads in master", v:leads.ctmRows, c:INDIGO },
+                { l:"Unassigned", v:leads.unassigned, c: leads.unassigned ? AMBER : GREEN },
+                { l:"Snapshot built", v: leads.snapshotAt ? new Date(leads.snapshotAt).toLocaleTimeString() : "never",
+                  c: leads.snapshotAt ? GREEN : RED }].map((x, i) =>
+                <div key={i} style={{ padding:"12px 14px", borderRadius:12, background:x.c + "0b", border:`1px solid ${x.c}33` }}>
+                  <div style={{ fontSize:10, color:T.muted, letterSpacing:1, textTransform:"uppercase" }}>{x.l}</div>
+                  <div className="display" style={{ fontSize:22, color:x.c }}>{x.v}</div>
+                </div>)}
+            </div>
+            <div style={{ fontSize:12, fontWeight:700, color:T.muted, marginBottom:8 }}>LEADS PER PRODUCER</div>
+            {(leads.producers || []).map((p, i) =>
+              <div key={i} style={{ display:"flex", justifyContent:"space-between", padding:"8px 12px",
+                borderRadius:10, marginBottom:5, background:T.sub, border:`1px solid ${T.line}` }}>
+                <span style={{ fontSize:12, fontWeight:600 }}>{p.name}</span>
+                <span style={{ fontSize:12, fontWeight:800, color: p.leads ? INDIGO : T.muted }}>{p.leads} in Current Leads</span>
+              </div>)}
+            {!!leads.unassigned && <div style={{ marginTop:10, padding:"10px 13px", borderRadius:11,
+              background:"#fff7ed", border:"1px solid #fed7aa", fontSize:12, color:"#9a3412" }}>
+              {leads.unassigned} lead{leads.unassigned === 1 ? " has" : "s have"} no producer in ASSIGNED TO,
+              so {leads.unassigned === 1 ? "it stays" : "they stay"} in the master sheet only.
+            </div>}
+          </>}
         </Card>
 
         <Card T={T} style={{ marginBottom:14 }}>
