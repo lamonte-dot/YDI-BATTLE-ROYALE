@@ -60,7 +60,7 @@ const CONFIG = {
   // Apps Script /exec URL — the one line anyone ever needs to edit.
   // Shared source of truth for the roster, folio periods, team goals, lead
   // sync, and the cached snapshot the dashboard reads instead of Sheets.
-  backendUrl: "https://script.google.com/macros/s/AKfycbxJUPWIWovt54Cv6FoYXKLfRl7FprsxkX5ek-wzBt0t2pwhKLN0ZvO5ZseZhFejaSrDrA/exec",
+  backendUrl: "",
   // Optional CTM call-tracking endpoint returning {producers:{Name:{answeredCalls,inboundLeads,missedCalls}}}
   ctmUrl: "",
   refreshMs: 5 * 60 * 1000,
@@ -997,6 +997,8 @@ function AddProducerFlow({ onDone, onCancel, T, existingCount }) {
   const [avatar, setAvatar] = useState("🧑‍💼");
   const [color, setColor] = useState(PALETTE[existingCount % PALETTE.length]);
   const [autoEmail, setAutoEmail] = useState(true);
+  const [mode, setMode] = useState(null);          // "create" | "link"
+  const [sheetUrl, setSheetUrl] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [done, setDone] = useState(null);
@@ -1013,6 +1015,19 @@ function AddProducerFlow({ onDone, onCancel, T, existingCount }) {
     setBusy(false);
     if (r.ok) setDone(r);
     else setErr(r.error || "The sheet could not be created.");
+  };
+
+  const link = async () => {
+    if (!name.trim()) return setErr("Enter the producer's name.");
+    if (!sheetUrl.trim()) return setErr("Paste the link to their existing spreadsheet.");
+    if (email.trim() && !email.includes("@")) return setErr("That email address doesn't look right.");
+    setBusy(true); setErr("");
+    const r = await api("linkProducer", {
+      name: name.trim(), email: email.trim(), avatar, color, sheetUrl: sheetUrl.trim(),
+    });
+    setBusy(false);
+    if (r.ok) setDone(r);
+    else setErr(r.error || "That spreadsheet could not be linked.");
   };
 
   const copyLink = () => {
@@ -1084,11 +1099,48 @@ function AddProducerFlow({ onDone, onCancel, T, existingCount }) {
     <button onClick={() => onDone(done.producers)} style={{ ...btn(T,"primary"), width:"100%", padding:13 }}>Done</button>
   </div>;
 
+  /* Choose: build a new sheet, or adopt one that already exists */
+  if (!mode) return <div>
+    <div style={{ fontSize:13, color:T.text2, lineHeight:1.65, marginBottom:16 }}>
+      Does this producer already have a sales log?
+    </div>
+    {[{ id:"create", icon:"📄", title:"No — build them a new one",
+        body:"Creates the spreadsheet, adds a tab per folio, shares it, and emails them the link." },
+      { id:"link", icon:"🔗", title:"Yes — connect their existing sheet",
+        body:"Keeps everything already logged. Adds any missing folio tabs and brings the columns up to date." }
+     ].map(o =>
+      <button key={o.id} onClick={() => { setMode(o.id); setErr(""); }}
+        style={{ display:"flex", gap:14, alignItems:"flex-start", width:"100%", textAlign:"left",
+          padding:"16px 18px", borderRadius:14, marginBottom:10, cursor:"pointer",
+          background:T.sub, border:`1px solid ${T.line}`, color:T.text }}>
+        <span style={{ fontSize:26 }}>{o.icon}</span>
+        <span>
+          <span style={{ display:"block", fontSize:14, fontWeight:700, marginBottom:3 }}>{o.title}</span>
+          <span style={{ display:"block", fontSize:12, color:T.muted, lineHeight:1.6 }}>{o.body}</span>
+        </span>
+      </button>)}
+    <button onClick={onCancel} style={{ ...btn(T), width:"100%", padding:12, marginTop:4 }}>Cancel</button>
+  </div>;
+
   /* Entry form */
   return <div>
+    <button onClick={() => { setMode(null); setErr(""); }}
+      style={{ ...btn(T), padding:"5px 11px", fontSize:11, marginBottom:12 }}>← Back</button>
     <div style={{ fontSize:13, color:T.text2, lineHeight:1.65, marginBottom:16 }}>
-      This builds their Google Sheet, sets up every folio tab, shares it with them, and hands you the link.
+      {mode === "link"
+        ? "Nothing is created or overwritten. Their existing policies stay exactly as they are."
+        : "This builds their Google Sheet, sets up every folio tab, shares it with them, and hands you the link."}
     </div>
+
+    {mode === "link" && <div style={{ marginBottom:12 }}>
+      <div style={{ fontSize:11, fontWeight:800, color:T.muted, letterSpacing:1, marginBottom:5 }}>LINK TO THEIR SPREADSHEET</div>
+      <input value={sheetUrl} onChange={e => { setSheetUrl(e.target.value); setErr(""); }}
+        placeholder="Paste the Google Sheets link"
+        style={{ ...input(T), fontSize:13 }}/>
+      <div style={{ fontSize:11, color:T.muted, marginTop:5 }}>
+        Open their sheet, copy the address bar, paste it here.
+      </div>
+    </div>}
 
     <div style={{ marginBottom:12 }}>
       <div style={{ fontSize:11, fontWeight:800, color:T.muted, letterSpacing:1, marginBottom:5 }}>PRODUCER NAME</div>
@@ -1103,7 +1155,9 @@ function AddProducerFlow({ onDone, onCancel, T, existingCount }) {
         onKeyDown={e => e.key === "Enter" && create()}
         placeholder="name@youngdouglasinsurance.com" style={{ ...input(T), fontSize:15 }}/>
       <div style={{ fontSize:11, color:T.muted, marginTop:5 }}>
-        Gives them edit access. Leave blank to create the sheet now and share it yourself later.
+        {mode === "link"
+          ? "Gives them edit access if they don't already have it. Safe to leave blank."
+          : "Gives them edit access. Leave blank to create the sheet now and share it yourself later."}
       </div>
     </div>
 
@@ -1120,7 +1174,7 @@ function AddProducerFlow({ onDone, onCancel, T, existingCount }) {
         <input type="color" value={color} onChange={e => setColor(e.target.value)}
           style={{ width:52, height:40, border:"none", borderRadius:9, cursor:"pointer", background:"none" }}/>
       </div>
-      <div style={{ flex:1, minWidth:180, alignSelf:"flex-end" }}>
+      {mode === "create" && <div style={{ flex:1, minWidth:180, alignSelf:"flex-end" }}>
         <label style={{ display:"flex", gap:9, alignItems:"flex-start", padding:"11px 13px", borderRadius:11,
           background: email.trim() ? T.sub : "transparent", border:`1px solid ${T.line}`,
           cursor: email.trim() ? "pointer" : "default", opacity: email.trim() ? 1 : .45 }}>
@@ -1130,7 +1184,7 @@ function AddProducerFlow({ onDone, onCancel, T, existingCount }) {
             <b style={{ color:T.text }}>Send them a welcome email</b><br/>Link plus how to log a policy.
           </span>
         </label>
-      </div>
+      </div>}
     </div>
 
     {err && <div style={{ padding:"11px 14px", borderRadius:11, background:RED+"10", border:`1px solid ${RED}44`,
@@ -1139,13 +1193,16 @@ function AddProducerFlow({ onDone, onCancel, T, existingCount }) {
     {busy && <div style={{ padding:"12px 15px", borderRadius:11, background:GREEN+"0d", border:`1px solid ${GREEN}44`,
       fontSize:13, color:GREEN, fontWeight:700, marginBottom:12 }}>
       <span style={{ display:"inline-block", animation:"spin 1s linear infinite", marginRight:9 }}>⏳</span>
-      Building the spreadsheet and folio tabs… this takes about 15 seconds.
+      {mode === "link" ? "Checking the sheet and bringing its tabs up to date…"
+                       : "Building the spreadsheet and folio tabs… this takes about 15 seconds."}
     </div>}
 
     <div style={{ display:"flex", gap:10 }}>
       <button onClick={onCancel} disabled={busy} style={{ ...btn(T), flex:1, padding:13, opacity: busy ? .5 : 1 }}>Cancel</button>
-      <button onClick={create} disabled={busy} style={{ ...btn(T,"go"), flex:2, padding:13, opacity: busy ? .6 : 1 }}>
-        {busy ? "Creating…" : "Create their sales log"}
+      <button onClick={mode === "link" ? link : create} disabled={busy}
+        style={{ ...btn(T,"go"), flex:2, padding:13, opacity: busy ? .6 : 1 }}>
+        {busy ? (mode === "link" ? "Connecting…" : "Creating…")
+              : (mode === "link" ? "Connect this sheet" : "Create their sales log")}
       </button>
     </div>
   </div>;
