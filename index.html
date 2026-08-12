@@ -57,8 +57,10 @@ const CONFIG = {
   app: "Battle Royale",
   version: "16.0",
   adminPassword: "YDI2026",
-  // Apps Script /exec URL. Leave "" to disable automatic sheet creation.
-  sheetCreatorUrl: "",
+  // Apps Script /exec URL — the one line anyone ever needs to edit.
+  // Shared source of truth for the roster, folio periods, team goals, lead
+  // sync, and the cached snapshot the dashboard reads instead of Sheets.
+  backendUrl: "https://script.google.com/macros/s/AKfycbxJUPWIWovt54Cv6FoYXKLfRl7FprsxkX5ek-wzBt0t2pwhKLN0ZvO5ZseZhFejaSrDrA/exec",
   // Optional CTM call-tracking endpoint returning {producers:{Name:{answeredCalls,inboundLeads,missedCalls}}}
   ctmUrl: "",
   refreshMs: 5 * 60 * 1000,
