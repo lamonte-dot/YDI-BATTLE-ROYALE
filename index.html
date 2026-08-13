@@ -60,7 +60,7 @@ const CONFIG = {
   // Apps Script /exec URL — the one line anyone ever needs to edit.
   // Shared source of truth for the roster, folio periods, team goals, lead
   // sync, and the cached snapshot the dashboard reads instead of Sheets.
-  backendUrl: "",
+  backendUrl: "https://script.google.com/macros/s/AKfycbxJUPWIWovt54Cv6FoYXKLfRl7FprsxkX5ek-wzBt0t2pwhKLN0ZvO5ZseZhFejaSrDrA/exec",
   // Optional CTM call-tracking endpoint returning {producers:{Name:{answeredCalls,inboundLeads,missedCalls}}}
   ctmUrl: "",
   refreshMs: 5 * 60 * 1000,
@@ -1376,6 +1376,10 @@ function App() {
 
   const [tab, setTab] = useState("dashboard");
   const [whoId, setWhoId] = useState(producersCfg[0]?.id || "joey");
+  // Until someone picks a producer, the view follows the top earner. Clicking
+  // a tab pins it for the rest of the session; a refresh returns to the leader.
+  const pickedProducer = useRef(false);
+  const chooseProducer = useCallback(id => { pickedProducer.current = true; setWhoId(id); }, []);
   const [trendMode, setTrendMode] = useState("weekly");
 
   const [modal, setModal] = useState(null);
@@ -1553,6 +1557,12 @@ function App() {
 
   useEffect(() => { if (toast) { const t = setTimeout(() => setToast(null), 9000); return () => clearTimeout(t); } }, [toast]);
 
+  useEffect(() => {
+    if (loading || pickedProducer.current || meId) return;
+    const leader = [...producers].sort((a, b) => b.premium - a.premium)[0];
+    if (leader && leader.premium > 0 && leader.id !== whoId) setWhoId(leader.id);
+  }, [producers, loading, meId]); // eslint-disable-line
+
   /* ── Persistence helpers ───────────────────────────────────────────── */
   const persist = {
     producers: (v, opts) => {
@@ -1648,7 +1658,7 @@ function App() {
         <div style={{ fontSize:36, marginBottom:8 }}>👤</div>
         <div className="display" style={{ fontSize:23, marginBottom:4 }}>Who's watching?</div>
         <p style={{ fontSize:12, color:T.muted, marginBottom:18 }}>Locks the dashboard to your own numbers. Team views stay open.</p>
-        {producersCfg.map(p => <button key={p.id} onClick={() => { persist.meId(p.id); setModal(null); }}
+        {producersCfg.map(p => <button key={p.id} onClick={() => { persist.meId(p.id); pickedProducer.current = true; setModal(null); }}
           style={{ display:"flex", alignItems:"center", gap:14, width:"100%", padding:"13px 17px", borderRadius:14,
             border:`1px solid ${T.border}`, background:T.sub, cursor:"pointer", marginBottom:8, color:T.text }}>
           <span style={{ fontSize:26 }}>{p.avatar}</span>
@@ -1739,10 +1749,10 @@ function App() {
 
       {/* ── Producer tabs ── */}
       <div style={{ display:"flex", gap:7, marginBottom:14, flexWrap:"wrap" }}>
-        {producers.map(p => {
+        {ranked.map(p => {
           const on = p.id === whoId, canSee = admin || !meId || p.id === meId;
           const lead = ranked[0]?.id === p.id && p.premium > 0;
-          return <button key={p.id} className="prodtab" onClick={() => canSee && setWhoId(p.id)}
+          return <button key={p.id} className="prodtab" onClick={() => canSee && chooseProducer(p.id)}
             style={{ display:"flex", alignItems:"center", gap:9, padding:"9px 14px", borderRadius:14, flex:1, minWidth:132,
               cursor: canSee ? "pointer" : "default", opacity: canSee ? 1 : .38, color: on ? T.text : T.text2,
               background: on ? p.color + "0f" : T.card, border:`1px solid ${on ? p.color + "55" : T.border}` }}>
@@ -1938,7 +1948,7 @@ function App() {
         </Card>
 
         <div className="display" style={{ fontSize:18, color:T.text2, marginBottom:11 }}>Individual goals — {period?.name}</div>
-        {producers.map(p => {
+        {ranked.map(p => {
           const g = p.goals || DEFAULT_GOALS, l = splitLines(p.sales);
           const rings = [
             { label:"Premium",       color:AMBER,  val:p.premium,        goal:g.premium,       center:short(p.premium),   arc:short(p.premium) },
@@ -1981,7 +1991,7 @@ function App() {
           {ranked.map((p, i) => {
             const l = splitLines(p.sales), xp = calcXP(p.sales), medal = ["👑","🥈","🥉"][i] || `${i+1}`;
             const revs = p.sales.filter(s => s.review).length;
-            return <div key={p.id} onClick={() => setWhoId(p.id)} style={{ padding:"14px 16px", borderRadius:14, marginBottom:9,
+            return <div key={p.id} onClick={() => chooseProducer(p.id)} style={{ padding:"14px 16px", borderRadius:14, marginBottom:9,
               cursor:"pointer", background: p.id === whoId ? p.color + "0a" : T.sub,
               border:`${p.id === whoId ? 2 : 1}px solid ${p.id === whoId ? p.color + "44" : T.line}` }}>
               <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:9 }}>
@@ -2361,15 +2371,37 @@ function App() {
             </div>
             <div style={{ fontSize:12, fontWeight:700, color:T.muted, marginBottom:8 }}>LEADS PER PRODUCER</div>
             {(leads.producers || []).map((p, i) =>
-              <div key={i} style={{ display:"flex", justifyContent:"space-between", padding:"8px 12px",
-                borderRadius:10, marginBottom:5, background:T.sub, border:`1px solid ${T.line}` }}>
-                <span style={{ fontSize:12, fontWeight:600 }}>{p.name}</span>
-                <span style={{ fontSize:12, fontWeight:800, color: p.leads ? INDIGO : T.muted }}>{p.leads} in Current Leads</span>
+              <div key={i} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 12px",
+                borderRadius:10, marginBottom:5, background:T.sub, border:`1px solid ${p.wired === false ? AMBER + "55" : T.line}` }}>
+                <span style={{ fontSize:12, fontWeight:600 }}>
+                  {p.wired === false ? "⚠️ " : "✓ "}{p.name}
+                </span>
+                <span style={{ fontSize:12, fontWeight:800, color: p.wired === false ? AMBER : (p.leads ? INDIGO : T.muted) }}>
+                  {p.wired === false ? "no Current Leads tab yet" : `${p.leads} in Current Leads`}
+                </span>
               </div>)}
+            <div style={{ marginTop:10, display:"flex", gap:8, flexWrap:"wrap" }}>
+              <button onClick={async () => { const r = await api("wireAgents");
+                addLog(r.ok && r.result.ok ? `ASSIGNED TO dropdown updated: ${r.result.agents.join(", ")}`
+                                           : "Could not update the dropdown: " + ((r.result && r.result.error) || r.error), r.ok ? "ok" : "err");
+                await pullLeadStatus(); }}
+                style={{ ...btn(T), padding:"6px 12px", fontSize:11 }}>
+                Refresh the CTM agent list
+              </button>
+            </div>
             {!!leads.unassigned && <div style={{ marginTop:10, padding:"10px 13px", borderRadius:11,
-              background:"#fff7ed", border:"1px solid #fed7aa", fontSize:12, color:"#9a3412" }}>
-              {leads.unassigned} lead{leads.unassigned === 1 ? " has" : "s have"} no producer in ASSIGNED TO,
-              so {leads.unassigned === 1 ? "it stays" : "they stay"} in the master sheet only.
+              background:"#fff7ed", border:"1px solid #fed7aa", fontSize:12, color:"#9a3412", lineHeight:1.6 }}>
+              <b>{leads.unassigned} lead{leads.unassigned === 1 ? "" : "s"} reaching nobody.</b> The name in
+              ASSIGNED TO doesn't match a producer, so {leads.unassigned === 1 ? "it never lands" : "they never land"} in
+              anyone's Current Leads. Usually a typo or someone no longer on the roster.
+              <button onClick={async () => { const r = await api("auditAssign");
+                if (r.ok) {
+                  const lines = (r.unmatched || []).map(u => `${u.count}× "${u.typed}"` + (u.nearest ? ` — did you mean "${u.nearest}"?` : ""));
+                  addLog(lines.length ? "Reaching nobody: " + lines.join(" · ") : "Every assigned lead has a home.", lines.length ? "warn" : "ok");
+                } else addLog("Audit failed: " + (r.error || "unknown"), "err");
+              }} style={{ ...btn(T), padding:"5px 11px", fontSize:11, marginLeft:8, background:"#fff", borderColor:"#fed7aa", color:"#9a3412" }}>
+                Show which names
+              </button>
             </div>}
           </>}
         </Card>
