@@ -52,6 +52,8 @@ const {useState,useEffect,useRef,useCallback,useMemo} = React;
    1. CONFIG — edit this block, everything else follows
    ══════════════════════════════════════════════════════════════════════ */
 
+const LOGO = "data:image/png;base64,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";
+
 const CONFIG = {
   agency: "Young Douglas Insurance Services",
   app: "Battle Royale",
@@ -60,7 +62,7 @@ const CONFIG = {
   // Apps Script /exec URL — the one line anyone ever needs to edit.
   // Shared source of truth for the roster, folio periods, team goals, lead
   // sync, and the cached snapshot the dashboard reads instead of Sheets.
-  backendUrl: "https://script.google.com/macros/s/AKfycbxJUPWIWovt54Cv6FoYXKLfRl7FprsxkX5ek-wzBt0t2pwhKLN0ZvO5ZseZhFejaSrDrA/exec",
+  backendUrl: "https://script.google.com/macros/s/AKfycbyb7Vk2JdqVpdEZ6wM_fKhAQJV4oxtOr_ZezwAtiIh8NC1meImxsBmULMSH2WLpZSxPSA/exec",
   // Optional CTM call-tracking endpoint returning {producers:{Name:{answeredCalls,inboundLeads,missedCalls}}}
   ctmUrl: "",
   refreshMs: 5 * 60 * 1000,
@@ -393,6 +395,10 @@ async function fetchProducerSales(producer, periods, log) {
    skips the CORS preflight that Apps Script cannot answer. */
 
 const hasBackend = () => /^https:\/\//.test(CONFIG.backendUrl || "");
+
+/* Must match BACKEND_BUILD in ydi-backend.gs. A mismatch means the deployment
+   is serving an older version of the script than this page expects. */
+const EXPECTED_BUILD = "16.3";
 
 async function api(action, payload = {}) {
   if (!hasBackend()) return { ok:false, error:"No backend URL is set in CONFIG yet." };
@@ -1462,7 +1468,9 @@ function App() {
     }
     if (r.teamGoals) { setTeamGoals(r.teamGoals); save("teamGoals", r.teamGoals); }
 
-    setCloud({ state:"ok", error:"" });
+    setCloud({ state:"ok", error:"", build: r.build || "" });
+    if (r.build && r.build !== EXPECTED_BUILD)
+      addLog(`Deployment is serving build ${r.build}; this page expects ${EXPECTED_BUILD}. Redeploy a new version.`, "warn");
     addLog(`Backend connected — ${(r.producers || []).length} producers, ${(r.periods || []).length} folios`, "ok");
     return r;
   }, [addLog]);
@@ -1630,7 +1638,7 @@ function App() {
 
     {loading && <div style={{ position:"fixed", inset:0, background:T.bg, zIndex:9500, display:"flex",
       flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14 }}>
-      <div style={{ fontSize:52, animation:"spin 1.4s linear infinite" }}>🏁</div>
+      <img src={LOGO} alt="" style={{ height:70, width:"auto", animation:"pulse 1.8s ease-in-out infinite" }}/>
       <div className="display" style={{ fontSize:26 }}>Loading Battle Royale</div>
       <div style={{ fontSize:13, color:T.muted }}>Reading every folio tab across {producersCfg.length} sheets…</div>
     </div>}
@@ -1692,8 +1700,9 @@ function App() {
       {/* ── Header ── */}
       <header style={{ display:"flex", alignItems:"center", gap:14, marginBottom:14, flexWrap:"wrap" }}>
         <div style={{ width:56, height:56, borderRadius:15, flexShrink:0, display:"flex", alignItems:"center",
-          justifyContent:"center", background:`linear-gradient(135deg,${NAVY},${INDIGO})`, boxShadow:"0 6px 18px rgba(26,60,110,.34)" }}>
-          <span className="display" style={{ fontSize:25, color:"#fff" }}>YDI</span>
+          justifyContent:"center", background: dark ? "#ffffff" : T.card,
+          border:`1px solid ${T.border}`, boxShadow:"0 4px 14px rgba(15,23,42,.10)" }}>
+          <img src={LOGO} alt="Young Douglas Insurance Services" style={{ height:38, width:"auto", display:"block" }}/>
         </div>
         <div style={{ flex:1, minWidth:180 }}>
           <div className="display" style={{ fontSize:27, lineHeight:1.05 }}>{CONFIG.app}</div>
@@ -2332,6 +2341,14 @@ function App() {
             {cloud.state === "ok" ? "✅ Backend connected" : cloud.state === "loading" ? "⏳ Checking backend…"
               : cloud.state === "error" ? "⚠️ Backend not responding" : "⚙️ Backend not set up"}
           </SectionTitle>
+          {cloud.state === "ok" && cloud.build && cloud.build !== EXPECTED_BUILD && <div style={{ padding:"11px 14px",
+            borderRadius:11, background:"#fff7ed", border:"1px solid #fed7aa", fontSize:12,
+            color:"#9a3412", lineHeight:1.7, marginBottom:10 }}>
+            <b>The deployment is serving older code.</b> This page expects build {EXPECTED_BUILD}, the backend
+            reports {cloud.build}. Newer features will fail with "Unknown action".<br/>
+            Fix: Apps Script → Deploy → Manage deployments → ✏️ on the deployment whose URL matches
+            CONFIG.backendUrl → Version: <b>New version</b> → Deploy.
+          </div>}
           {cloud.state === "ok" && <div style={{ fontSize:12, color:T.text2, lineHeight:1.7 }}>
             The producer roster, folio periods, and team goals all live on the backend, so every browser
             sees the same setup. Adding a producer builds their sheet and shares it automatically —
