@@ -1221,16 +1221,28 @@ function ProducersModal({ producers, onSave, onClose, T }) {
   const remove = async () => {
     const p = confirm.p;
     setBusy(true);
-    const r = await api("removeProducer", { id:p.id, revoke: revoke ? "true" : "false" });
+    const r = await api("removeProducer", { id:p.id, name:p.name, revoke: revoke ? "true" : "false" });
     setBusy(false);
     setConfirm(null);
-    if (r.ok) { setRows(r.producers.map(x => ({ ...x }))); onSave(r.producers, { silent:true }); setNote(`${p.name} removed.`); }
-    else setNote(r.error || "Could not remove that producer.");
+
+    // Clear locally whatever the backend said. Leaving the row on screen after
+    // the person confirmed a removal reads as a broken button, and the backend
+    // treats a missing producer as already removed anyway.
+    const next = (r.ok && Array.isArray(r.producers) && !r.alreadyGone)
+      ? r.producers
+      : rows.filter(x => x.id !== p.id);
+
+    setRows(next.map(x => ({ ...x })));
+    onSave(next, { silent:true });
+
+    if (!r.ok) setNote(`${p.name} removed here, but the backend reported: ${r.error || "unknown error"}`);
+    else if ((r.warnings || []).length) setNote(`${p.name} removed. ${r.warnings.join(" ")}`);
+    else setNote(`${p.name} removed.`);
   };
 
   const save = async () => {
     setBusy(true);
-    const r = await api("saveProducers", { producers: rows });
+    const r = await api("saveProducers", { producers: rows, allowEmpty: rows.length ? "false" : "true" });
     setBusy(false);
     if (r.ok) { onSave(r.producers); onClose(); }
     else setNote(r.error || "Could not save. Your changes are still here — try again.");
@@ -1348,10 +1360,12 @@ function App() {
   const [dark, setDark] = useState(() => load("dark", false));
   const [producersCfg, setProducersCfg] = useState(() => {
     // Self-healing: pinned sheet IDs from source always win over cached config.
-    // Seeds the four originals on a fresh browser. Once the backend answers,
-    // its roster replaces this entirely.
+    // Seeds the four originals on a fresh browser only. Once the backend has
+    // answered even once, its roster is the truth — otherwise a producer you
+    // removed would be seeded straight back in on the next load.
     let cfg = load("producers", null);
-    if (!Array.isArray(cfg) || !cfg.length) cfg = DEFAULT_PRODUCERS;
+    const backendKnows = load("rosterFromBackend", false);
+    if (!Array.isArray(cfg) || (!cfg.length && !backendKnows)) cfg = DEFAULT_PRODUCERS;
     cfg = cfg.map(p => {
       const id = p.id === "stephanie" ? "aja" : p.id;
       return { ...p, id, name: p.id === "stephanie" ? "A'ja" : p.name,
@@ -1433,10 +1447,14 @@ function App() {
     const r = await api("getConfig");
     if (!r.ok) { setCloud({ state:"error", error:r.error || "Backend unreachable." }); addLog("Backend: " + (r.error || "unreachable"), "warn"); return null; }
 
-    if (Array.isArray(r.producers) && r.producers.length) {
+    // The backend is authoritative once it answers — including when it says the
+    // roster is empty. Treating empty as "no news" made removals reappear on
+    // the next refresh, because the cached copy won instead.
+    if (Array.isArray(r.producers)) {
       const merged = r.producers.map(p => ({ ...p, goals:{ ...DEFAULT_GOALS, ...(p.goals || {}) } }));
       setProducersCfg(merged); save("producers", merged);
-      setWhoId(w => merged.some(p => p.id === w) ? w : merged[0].id);
+      save("rosterFromBackend", true);
+      if (merged.length) setWhoId(w => merged.some(p => p.id === w) ? w : merged[0].id);
     }
     if (Array.isArray(r.periods) && r.periods.length) {
       setPeriods(r.periods); save("periods", r.periods);
