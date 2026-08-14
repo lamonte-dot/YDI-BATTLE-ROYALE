@@ -71,20 +71,13 @@ const CONFIG = {
 /* Sheet IDs are pinned here and re-applied on every load, so editing this
    list always wins over whatever a browser has cached. */
 const SHEET_IDS = {
-  joey:    "1lcpyQctMAIZ1Q-cDFIpWNelf7R_Y61PJCfCXyVFhh4E",
-  melissa: "1A0zojTTbqWpohNSsa9lmA3HoOSCcC8a7yxl-VLvjCLI",
-  aja:     "1wGf4D137wbeI80R67NgusuAA5rGMa2xZJjqmkmAxdfA",
-  kim:     "1qFrMldIUyixXDAjxHDUq8ZocoVaztWRBF6yvo2w6G3Y",
+  // Only ever seeds a browser that has never loaded the tool. Everyone else is
+  // added through Admin ▸ Manage producers, and the backend roster is the truth.
 };
 
 const DEFAULT_GOALS = { premium:25000, policies:20, personalLines:15, life:3, commercial:2 };
 
-const DEFAULT_PRODUCERS = [
-  { id:"joey",    name:"Joey",            avatar:"🧑‍💼", color:"#6366f1", gid:"15114878",   sound:"chime",   goals:{...DEFAULT_GOALS} },
-  { id:"melissa", name:"Melissa Douglas", avatar:"👩‍💼", color:"#db2777", gid:"1539925404", sound:"fanfare", goals:{...DEFAULT_GOALS} },
-  { id:"aja",     name:"A'ja",            avatar:"👩‍💻", color:"#0891b2", gid:"1300290169", sound:"victory", goals:{...DEFAULT_GOALS} },
-  { id:"kim",     name:"Kim Reese",       avatar:"👩‍🔧", color:"#d97706", gid:"0",          sound:"cash",    goals:{...DEFAULT_GOALS} },
-].map(p => ({ ...p, sheetId: SHEET_IDS[p.id] || "" }));
+const DEFAULT_PRODUCERS = [];
 
 const DEFAULT_PERIODS = [
   { name:"2/18-3/18/2026",   start:"2026-02-18", end:"2026-03-18" },
@@ -398,7 +391,7 @@ const hasBackend = () => /^https:\/\//.test(CONFIG.backendUrl || "");
 
 /* Must match BACKEND_BUILD in ydi-backend.gs. A mismatch means the deployment
    is serving an older version of the script than this page expects. */
-const EXPECTED_BUILD = "16.3";
+const EXPECTED_BUILD = "16.4";
 
 async function api(action, payload = {}) {
   if (!hasBackend()) return { ok:false, error:"No backend URL is set in CONFIG yet." };
@@ -1370,8 +1363,7 @@ function App() {
     // answered even once, its roster is the truth — otherwise a producer you
     // removed would be seeded straight back in on the next load.
     let cfg = load("producers", null);
-    const backendKnows = load("rosterFromBackend", false);
-    if (!Array.isArray(cfg) || (!cfg.length && !backendKnows)) cfg = DEFAULT_PRODUCERS;
+    if (!Array.isArray(cfg)) cfg = DEFAULT_PRODUCERS;
     cfg = cfg.map(p => {
       const id = p.id === "stephanie" ? "aja" : p.id;
       return { ...p, id, name: p.id === "stephanie" ? "A'ja" : p.name,
@@ -1635,6 +1627,21 @@ function App() {
   /* ══════════════════════════════════════════════════════════════════ */
   return <div className="wrap" style={{ minHeight:"100vh", background:T.bg, color:T.text, padding:18 }}>
     <canvas ref={canvasRef} style={{ position:"fixed", inset:0, width:"100%", height:"100%", pointerEvents:"none", zIndex:8500 }}/>
+
+    {!loading && !producers.length && <div style={{ position:"fixed", inset:0, background:T.bg, zIndex:9400,
+      display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16, padding:24 }}>
+      <img src={LOGO} alt="" style={{ height:64, width:"auto" }}/>
+      <div className="display" style={{ fontSize:28 }}>No producers yet</div>
+      <div style={{ fontSize:14, color:T.muted, textAlign:"center", maxWidth:420, lineHeight:1.7 }}>
+        {hasBackend()
+          ? "Open Admin and add your first producer. The tool will build their sales log, share it, and hand you the link."
+          : "Set CONFIG.backendUrl to your Apps Script /exec URL first, then add producers here."}
+      </div>
+      <button onClick={() => admin ? setModal("producers") : setModal({ gate:"producers" })}
+        style={{ ...btn(T,"go"), padding:"13px 26px", fontSize:14 }}>
+        {admin ? "➕ Add a producer" : "🔐 Admin"}
+      </button>
+    </div>}
 
     {loading && <div style={{ position:"fixed", inset:0, background:T.bg, zIndex:9500, display:"flex",
       flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14 }}>
