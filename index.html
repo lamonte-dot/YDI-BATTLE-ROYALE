@@ -1553,6 +1553,7 @@ function App() {
      on one machine shows up for everyone without anyone editing this file. */
   const [cloud, setCloud] = useState({ state: hasBackend() ? "loading" : "off", error:"" });
   const [leads, setLeads] = useState(null);
+  const [tplDraft, setTplDraft] = useState("");
 
   const pullLeadStatus = useCallback(async () => {
     if (!hasBackend()) return;
@@ -1581,7 +1582,7 @@ function App() {
     }
     if (r.teamGoals) { setTeamGoals(r.teamGoals); save("teamGoals", r.teamGoals); }
 
-    setCloud({ state:"ok", error:"", build: r.build || "" });
+    setCloud({ state:"ok", error:"", build: r.build || "", templateId: r.templateId || "" });
     if (r.build && r.build !== EXPECTED_BUILD)
       addLog(`Deployment is serving build ${r.build}; this page expects ${EXPECTED_BUILD}. Redeploy a new version.`, "warn");
     addLog(`Backend connected — ${(r.producers || []).length} producers, ${(r.periods || []).length} folios`, "ok");
@@ -2502,6 +2503,55 @@ function App() {
             index.html. That is the only code edit anyone ever needs to make — after it, producers are
             added from this screen.
           </div>}
+        </Card>
+
+        <Card T={T} style={{ marginBottom:14 }}>
+          <SectionTitle T={T}>Producer sheet template</SectionTitle>
+          <div style={{ fontSize:12, color:T.text2, lineHeight:1.7, marginBottom:12 }}>
+            Point this at a spreadsheet you have laid out yourself and every new producer gets
+            a copy of it — your colours, your dropdowns, your extra tabs. Leave it blank and
+            the tool draws the sheets instead.
+            <br/><br/>
+            It needs a tab named <b>FOLIO TEMPLATE</b>, which is copied once per contest period
+            and renamed to the folio dates. <b>Current Leads</b> and <b>Aged Leads</b> come across
+            as they are. Header text has to stay exactly as it is — every column is matched by name.
+          </div>
+          <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:10 }}>
+            <input value={tplDraft} onChange={e => setTplDraft(e.target.value)}
+              placeholder={cloud.templateId || "Paste the template's link, or leave blank for none"}
+              style={{ ...input(T), flex:1, minWidth:240, fontSize:12 }}/>
+            <button onClick={async () => {
+              setBusy(true);
+              const r = await api("saveTemplate", { templateId: tplDraft.trim() });
+              setBusy(false);
+              if (r.ok) {
+                setTplDraft("");
+                addLog(r.cleared ? r.message : "Template saved. Checking it…", "ok");
+                const c = r.check || await api("checkTemplate");
+                addLog(c.ok ? "Template looks right — new producers will be copied from it."
+                            : "Template has problems: " + (c.problems || [c.error]).join(" · "),
+                       c.ok ? "ok" : "warn");
+                await pullConfig();
+              } else addLog(r.error || "Could not save that template.", "err");
+            }} disabled={busy} style={{ ...btn(T,"go"), padding:"9px 18px", fontSize:12 }}>
+              {busy ? "Checking…" : "Save template"}
+            </button>
+            <button onClick={async () => {
+              const c = await api("checkTemplate");
+              addLog(c.ok
+                ? (c.usingTemplate === false ? "No template set — sheets are drawn by the tool."
+                                             : "Template looks right.")
+                : "Template has problems: " + (c.problems || [c.error]).join(" · "),
+                c.ok ? "ok" : "warn");
+            }} style={{ ...btn(T), padding:"9px 16px", fontSize:12 }}>Check it</button>
+          </div>
+          <div style={{ fontSize:11, color:T.muted }}>
+            {cloud.templateId
+              ? <>In use: <span style={{ fontFamily:"ui-monospace,Menlo,monospace" }}>{cloud.templateId}</span>
+                  {" · "}<a href={`https://docs.google.com/spreadsheets/d/${cloud.templateId}/edit`}
+                    target="_blank" rel="noreferrer" style={{ color:INDIGO, fontWeight:700 }}>Open it ↗</a></>
+              : "No template set — the tool draws each sheet."}
+          </div>
         </Card>
 
         <Card T={T} style={{ marginBottom:14 }}>
