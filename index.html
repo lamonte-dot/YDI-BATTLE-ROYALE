@@ -1298,6 +1298,8 @@ function ProducersModal({ producers, onSave, onClose, T }) {
   const [revoke, setRevoke] = useState(true);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
+  const [editingLink, setEditingLink] = useState(null);
+  const [linkDraft, setLinkDraft] = useState("");
 
   const set = (i, f, v) => setRows(r => r.map((x, j) => j === i ? { ...x, [f]: v } : x));
 
@@ -1399,16 +1401,51 @@ function ProducersModal({ producers, onSave, onClose, T }) {
           style={{ ...btn(T,"danger"), padding:"9px 11px" }}>🗑</button>
       </div>
 
-      {p.sheetId && <div style={{ display:"flex", gap:10, alignItems:"center", flexWrap:"wrap", padding:"9px 13px",
-        borderRadius:11, background:GREEN+"12", border:`1px solid ${GREEN}44`, marginBottom:9 }}>
-        <span style={{ fontSize:12, color:GREEN, fontWeight:800 }}>✓ Sheet linked</span>
-        {p.email && <span style={{ fontSize:11, color:T.muted }}>{p.email}</span>}
-        {p.sheetUrl && <a href={p.sheetUrl} target="_blank" rel="noreferrer"
-          style={{ fontSize:11, color:GREEN, fontWeight:700 }}>Open sheet ↗</a>}
-        <a href={csvByGid(p.sheetId, p.gid || 0)} target="_blank" rel="noreferrer"
-          style={{ fontSize:11, color:INDIGO, fontWeight:700 }}>Test CSV feed ↗</a>
-        {p.sheetUrl && <button onClick={() => { if (navigator.clipboard) navigator.clipboard.writeText(p.sheetUrl); setNote("Link copied for " + firstName(p.name) + "."); }}
-          style={{ ...btn(T), padding:"4px 11px", fontSize:11, marginLeft:"auto" }}>Copy link</button>}
+      {p.sheetId && <div style={{ padding:"9px 13px", borderRadius:11,
+        background:GREEN+"12", border:`1px solid ${GREEN}44`, marginBottom:9 }}>
+        <div style={{ display:"flex", gap:10, alignItems:"center", flexWrap:"wrap" }}>
+          <span style={{ fontSize:12, color:GREEN, fontWeight:800 }}>✓ Sheet linked</span>
+          {p.email && <span style={{ fontSize:11, color:T.muted }}>{p.email}</span>}
+          {p.sheetUrl && <a href={p.sheetUrl} target="_blank" rel="noreferrer"
+            style={{ fontSize:11, color:GREEN, fontWeight:700 }}>Open sheet ↗</a>}
+          <a href={csvByGid(p.sheetId, p.gid || 0)} target="_blank" rel="noreferrer"
+            style={{ fontSize:11, color:INDIGO, fontWeight:700 }}>Test CSV feed ↗</a>
+          {p.sheetUrl && <button onClick={() => { if (navigator.clipboard) navigator.clipboard.writeText(p.sheetUrl); setNote("Link copied for " + firstName(p.name) + "."); }}
+            style={{ ...btn(T), padding:"4px 11px", fontSize:11, marginLeft:"auto" }}>Copy link</button>}
+          <button onClick={() => { setEditingLink(editingLink === p.id ? null : p.id); setLinkDraft(""); setNote(""); }}
+            style={{ ...btn(T), padding:"4px 11px", fontSize:11 }}>
+            {editingLink === p.id ? "Cancel" : "Change link"}
+          </button>
+        </div>
+
+        {editingLink === p.id && <div style={{ marginTop:10, paddingTop:10, borderTop:`1px solid ${GREEN}33` }}>
+          <div style={{ fontSize:11, color:T.text2, lineHeight:1.6, marginBottom:7 }}>
+            Paste a different spreadsheet to point {firstName(p.name)} at. It is checked,
+            brought up to the current layout, and wired in before anything changes — so a bad
+            link fails without disturbing what they already have.
+          </div>
+          <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+            <input value={linkDraft} onChange={e => { setLinkDraft(e.target.value); setNote(""); }}
+              placeholder="Paste the Google Sheets link"
+              style={{ ...input(T), background:T.card, flex:1, minWidth:220, fontSize:12 }}/>
+            <button disabled={busy} onClick={async () => {
+              if (!linkDraft.trim()) return setNote("Paste a link first.");
+              setBusy(true);
+              const r = await api("updateSheet", { id:p.id, sheetUrl:linkDraft.trim() });
+              setBusy(false);
+              if (r.ok) {
+                setRows((r.producers || rows).map(x => ({ ...x })));
+                onSave(r.producers || rows, { silent:true });
+                setEditingLink(null); setLinkDraft("");
+                setNote(r.unchanged
+                  ? `${p.name} was already on that sheet — re-checked and brought up to date.`
+                  : `${p.name} now points at the new sheet — ${r.existingPolicies} policies found.`);
+              } else setNote(r.error || "Could not update that link.");
+            }} style={{ ...btn(T,"go"), padding:"8px 16px", fontSize:12, opacity: busy ? .6 : 1 }}>
+              {busy ? "Checking…" : "Save link"}
+            </button>
+          </div>
+        </div>}
       </div>}
 
       <div style={{ padding:"11px 13px", background:T.card, borderRadius:11, border:`1px solid ${T.line}` }}>
@@ -2504,6 +2541,19 @@ function App() {
               ["🎯 Team goals","teamGoals",AMBER],["📋 Message board","messages","#0891b2"]].map(([label, key, c]) =>
               <button key={key} onClick={() => setModal(key)} style={{ padding:"11px 18px", borderRadius:11, cursor:"pointer",
                 fontSize:13, fontWeight:700, border:`1px solid ${c}44`, background:c + "0d", color:c }}>{label}</button>)}
+            <button onClick={async () => {
+              setBusy(true);
+              const r = await api("repairSheets");
+              setBusy(false);
+              addLog((r.fixed || []).length ? "Rebuilt: " + r.fixed.join(" · ")
+                : r.ok ? "Every producer sheet is already complete."
+                : "Repair failed: " + (r.error || "unknown"), r.ok ? "ok" : "err");
+              if ((r.failed || []).length) addLog("Problems: " + r.failed.join(" · "), "warn");
+              await refresh();
+            }} disabled={busy} style={{ padding:"11px 18px", borderRadius:11, cursor:"pointer",
+              fontSize:13, fontWeight:700, border:`1px solid ${T.border}`, background:T.card, color:T.text2 }}>
+              🔧 {busy ? "Checking…" : "Repair producer sheets"}
+            </button>
           </div>
         </Card>
 
