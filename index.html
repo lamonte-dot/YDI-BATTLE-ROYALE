@@ -986,6 +986,90 @@ function MessagesModal({ messages, onSave, onClose, T }) {
   </Modal>;
 }
 
+/* Starting a clean year: every producer gets a new sheet on the new dates, and
+   last year's is renamed and kept. Deliberately a typed confirmation — it takes
+   the current figures off the leaderboard the moment it runs. */
+function NewYearModal({ T, periods, producers, onClose, onDone, addLog }) {
+  const [label, setLabel] = useState(String(new Date().getFullYear()));
+  const [typed, setTyped] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [done, setDone] = useState(null);
+
+  const go = async () => {
+    if (typed.trim().toUpperCase() !== "NEW YEAR") return setErr('Type NEW YEAR to confirm.');
+    setBusy(true); setErr("");
+    const r = await api("newFolioYear", { confirm:"YES", label: label.trim() });
+    setBusy(false);
+    if (r.ok) {
+      setDone(r);
+      addLog(`New folio year started. Rebuilt: ${(r.rebuilt||[]).join(", ") || "nobody"}`, "ok");
+      if ((r.failed||[]).length) addLog("Problems: " + r.failed.join(" · "), "warn");
+    } else setErr(r.error || "Could not start the new year.");
+  };
+
+  if (done) return <Modal onClose={() => onDone(done.producers || producers)} T={T} width={520}>
+    <div style={{ textAlign:"center" }}>
+      <div style={{ fontSize:42, marginBottom:10 }}>🗄️</div>
+      <div className="display" style={{ fontSize:24, marginBottom:8 }}>New year started</div>
+      <div style={{ fontSize:13, color:T.text2, lineHeight:1.7, marginBottom:16 }}>
+        {(done.rebuilt || []).length} producer{(done.rebuilt||[]).length === 1 ? "" : "s"} moved to fresh sheets.
+        Last year's are renamed <b>[{done.label}]</b> and still in Drive.
+      </div>
+      {!!(done.failed || []).length && <div style={{ padding:"11px 14px", borderRadius:11, background:"#fff7ed",
+        border:"1px solid #fed7aa", fontSize:12, color:"#9a3412", textAlign:"left", marginBottom:14 }}>
+        {done.failed.map((f, i) => <div key={i}>⚠️ {f}</div>)}
+      </div>}
+      <button onClick={() => onDone(done.producers || producers)} style={{ ...btn(T,"primary"), width:"100%", padding:12 }}>Done</button>
+    </div>
+  </Modal>;
+
+  return <Modal onClose={onClose} T={T} width={520}>
+    <ModalHead title="🗄️ Start a clean year" onClose={onClose} T={T}/>
+    <div style={{ fontSize:13, color:T.text2, lineHeight:1.7, marginBottom:14 }}>
+      Every producer gets a brand-new sheet built on the <b>{periods.length}</b> periods
+      currently configured. Their existing sheet is renamed and kept in Drive — nothing
+      is deleted, and the link stays on their record.
+    </div>
+    <div style={{ padding:"12px 15px", borderRadius:12, background:AMBER + "0d",
+      border:`1px solid ${AMBER}44`, fontSize:12, color:"#92400e", lineHeight:1.7, marginBottom:14 }}>
+      This year's figures come off the leaderboard straight away, because the dashboard
+      reads whatever the roster points at. Make sure <b>Contest periods</b> holds the new
+      dates before you run it.
+    </div>
+
+    <div style={{ marginBottom:12 }}>
+      <div style={{ fontSize:11, fontWeight:800, color:T.muted, letterSpacing:1, marginBottom:5 }}>ARCHIVE LABEL</div>
+      <input value={label} onChange={e => setLabel(e.target.value)} style={{ ...input(T) }}/>
+      <div style={{ fontSize:11, color:T.muted, marginTop:5 }}>
+        Added to the old sheet names, e.g. "YDI Sales Log — Joey [{label || "2026"}]".
+      </div>
+    </div>
+
+    <div style={{ marginBottom:14 }}>
+      <div style={{ fontSize:11, fontWeight:800, color:T.muted, letterSpacing:1, marginBottom:5 }}>TYPE "NEW YEAR" TO CONFIRM</div>
+      <input value={typed} onChange={e => { setTyped(e.target.value); setErr(""); }}
+        placeholder="NEW YEAR" style={{ ...input(T), fontWeight:700, letterSpacing:1 }}/>
+    </div>
+
+    {err && <div style={{ padding:"10px 13px", borderRadius:10, background:RED + "10",
+      border:`1px solid ${RED}44`, fontSize:12, color:RED, fontWeight:700, marginBottom:12 }}>{err}</div>}
+
+    {busy && <div style={{ padding:"12px 15px", borderRadius:11, background:GREEN + "0d",
+      border:`1px solid ${GREEN}44`, fontSize:13, color:GREEN, fontWeight:700, marginBottom:12 }}>
+      <span style={{ display:"inline-block", animation:"spin 1s linear infinite", marginRight:9 }}>⏳</span>
+      Building new sheets — about 15 seconds per producer.
+    </div>}
+
+    <div style={{ display:"flex", gap:10 }}>
+      <button onClick={onClose} disabled={busy} style={{ ...btn(T), flex:1, padding:13 }}>Cancel</button>
+      <button onClick={go} disabled={busy} style={{ ...btn(T,"danger"), flex:2, padding:13, opacity: busy ? .6 : 1 }}>
+        {busy ? "Working…" : "Start the new year"}
+      </button>
+    </div>
+  </Modal>;
+}
+
 /* ── Manage producers ─────────────────────────────────────────────────── */
 
 /* Add flow: name + email -> backend builds the sheet -> link with copy + email.
@@ -1628,7 +1712,9 @@ function App() {
   return <div className="wrap" style={{ minHeight:"100vh", background:T.bg, color:T.text, padding:18 }}>
     <canvas ref={canvasRef} style={{ position:"fixed", inset:0, width:"100%", height:"100%", pointerEvents:"none", zIndex:8500 }}/>
 
-    {!loading && !producers.length && <div style={{ position:"fixed", inset:0, background:T.bg, zIndex:9400,
+    {/* Below the modal layer (9000) and hidden while one is open — at 9400 it
+        covered the very dialog its own button opens, with no way back. */}
+    {!loading && !producers.length && !modal && <div style={{ position:"fixed", inset:0, background:T.bg, zIndex:8200,
       display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16, padding:24 }}>
       <img src={LOGO} alt="" style={{ height:64, width:"auto" }}/>
       <div className="display" style={{ fontSize:28 }}>No producers yet</div>
@@ -1639,7 +1725,11 @@ function App() {
       </div>
       <button onClick={() => admin ? setModal("producers") : setModal({ gate:"producers" })}
         style={{ ...btn(T,"go"), padding:"13px 26px", fontSize:14 }}>
-        {admin ? "➕ Add a producer" : "🔐 Admin"}
+        {admin ? "➕ Add a producer" : "🔐 Unlock admin to add one"}
+      </button>
+      <button onClick={refresh} disabled={busy}
+        style={{ ...btn(T), padding:"9px 18px", fontSize:12 }}>
+        {busy ? "Checking…" : "↻ Re-check the backend"}
       </button>
     </div>}
 
@@ -1678,6 +1768,9 @@ function App() {
     {modal === "producers" && <ProducersModal producers={producersCfg} T={T}
       onSave={persist.producers} onClose={() => setModal(null)}/>}
     {modal === "periods" && <PeriodsModal periods={periods} T={T} onSave={persist.periods} onClose={() => setModal(null)}/>}
+    {modal === "newYear" && <NewYearModal T={T} periods={periods} producers={producersCfg}
+      onClose={() => setModal(null)} onDone={list => { persist.producers(list, { silent:true }); setModal(null); }}
+      addLog={addLog}/>}
     {modal === "teamGoals" && <TeamGoalsModal goals={teamGoals} T={T} onSave={persist.teamGoals} onClose={() => setModal(null)}/>}
     {modal === "messages" && <MessagesModal messages={messages} T={T} onSave={persist.messages} onClose={() => setModal(null)}/>}
     {modal === "avatar" && <PickerModal title="Choose your avatar" T={T} current={me?.avatar}
@@ -2372,6 +2465,36 @@ function App() {
             index.html. That is the only code edit anyone ever needs to make — after it, producers are
             added from this screen.
           </div>}
+        </Card>
+
+        <Card T={T} style={{ marginBottom:14 }}>
+          <SectionTitle T={T}>Folio year</SectionTitle>
+          <div style={{ fontSize:12, color:T.text2, lineHeight:1.7, marginBottom:12 }}>
+            Put the new dates into <b>Contest periods</b> first. Then add the tabs to
+            everyone's existing sheets, or start a clean book if you would rather last
+            year's figures came off the board.
+          </div>
+          <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
+            <button onClick={async () => {
+              setBusy(true);
+              const r = await api("addNewFolios");
+              setBusy(false);
+              if (r.ok) {
+                addLog(r.producersUpdated
+                  ? `Added folio tabs for ${r.producersUpdated} producer(s): ${(r.added||[]).join(" · ")}`
+                  : "Every producer already has a tab for each period.", "ok");
+                if ((r.failed||[]).length) addLog("Could not reach: " + r.failed.join(" · "), "warn");
+              } else addLog("Could not add folios: " + (r.error || "unknown"), "err");
+              await refresh();
+            }} disabled={busy} style={{ ...btn(T,"go"), padding:"11px 18px" }}>
+              📅 Add the new folio tabs
+            </button>
+
+            <button onClick={() => setModal("newYear")}
+              style={{ ...btn(T), padding:"11px 18px", borderColor:AMBER + "66", color:"#92400e", background:AMBER + "0d" }}>
+              🗄️ Start a clean year…
+            </button>
+          </div>
         </Card>
 
         <Card T={T} style={{ marginBottom:14 }}>
