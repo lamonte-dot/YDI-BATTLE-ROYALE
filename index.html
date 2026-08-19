@@ -2604,6 +2604,19 @@ function App() {
               fontSize:13, fontWeight:700, border:`1px solid ${T.border}`, background:T.card, color:T.text2 }}>
               🔧 {busy ? "Checking…" : "Repair producer sheets"}
             </button>
+            <button onClick={async () => {
+              setBusy(true);
+              const r = await api("dedupeLeads");
+              setBusy(false);
+              addLog((r.cleaned || []).length ? "Cleaned: " + r.cleaned.join(" · ")
+                : r.ok ? "No duplicate leads found."
+                : "Clean-up failed: " + (r.error || "unknown"), r.ok ? "ok" : "err");
+              if ((r.failed || []).length) addLog("Problems: " + r.failed.join(" · "), "warn");
+              await refresh();
+            }} disabled={busy} style={{ padding:"11px 18px", borderRadius:11, cursor:"pointer",
+              fontSize:13, fontWeight:700, border:`1px solid ${AMBER}44`, background:AMBER + "0d", color:"#92400e" }}>
+              🧹 {busy ? "Working…" : "Remove duplicate leads"}
+            </button>
           </div>
         </Card>
 
