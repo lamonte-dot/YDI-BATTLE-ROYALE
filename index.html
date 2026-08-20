@@ -2755,6 +2755,22 @@ function App() {
               <button key={key} onClick={() => setModal(key)} style={{ padding:"11px 18px", borderRadius:11, cursor:"pointer",
                 fontSize:13, fontWeight:700, border:`1px solid ${c}44`, background:c + "0d", color:c }}>{label}</button>)}
             <button onClick={async () => {
+              if (!confirm("Put every assignment back where the lead's own dates say?\n\n" +
+                  "Use this if a producer's whole back catalogue has landed on their " +
+                  "Current Leads. Leads worked in this folio stay; the rest file to " +
+                  "Aged Leads, which is where they belong.\n\n" +
+                  "No spreadsheet is changed.")) return;
+              setBusy(true);
+              const r = await api("reseedAssign");
+              setBusy(false);
+              addLog(r.ok
+                ? `${r.reseeded} assignment(s) put back. The sheets re-file on the next sync.`
+                : (r.error || "Could not do that."), r.ok ? "ok" : "err");
+            }} disabled={busy} style={{ padding:"11px 18px", borderRadius:11, cursor:"pointer",
+              fontSize:13, fontWeight:700, border:`1px solid ${T.border}`, background:T.card, color:T.text2 }}>
+              ↩️ {busy ? "Working…" : "Put assignments back"}
+            </button>
+            <button onClick={async () => {
               const who = prompt(
                 "Bring a producer's older leads onto their Current Leads?\n\n" +
                 "Open leads sitting in a past folio move to this one, as though assigned " +
