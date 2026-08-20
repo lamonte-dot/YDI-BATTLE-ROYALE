@@ -2754,6 +2754,64 @@ function App() {
               ["🎯 Team goals","teamGoals",AMBER],["📋 Message board","messages","#0891b2"]].map(([label, key, c]) =>
               <button key={key} onClick={() => setModal(key)} style={{ padding:"11px 18px", borderRadius:11, cursor:"pointer",
                 fontSize:13, fontWeight:700, border:`1px solid ${c}44`, background:c + "0d", color:c }}>{label}</button>)}
+            <button onClick={async () => {
+              const who = prompt(
+                "Bring a producer's older leads onto their Current Leads?\n\n" +
+                "Open leads sitting in a past folio move to this one, as though assigned " +
+                "today. Bound and closed business stays where it happened.\n\n" +
+                "Type their name:");
+              if (!who || !who.trim()) return;
+
+              setBusy(true);
+              const pre = await api("bringForward", { who: who.trim(), dryRun: "true" });
+              setBusy(false);
+              if (!pre.ok) { addLog(pre.error || "Could not check that.", "err"); return; }
+
+              if (!pre.wouldMove) {
+                addLog(`${who.trim()}: nothing to bring forward — ${pre.already} already current, ` +
+                       `${pre.closed} bound or closed.`, "ok");
+                return;
+              }
+              if (!confirm(`Move ${pre.wouldMove} open lead(s) onto their Current Leads?\n\n` +
+                  (pre.clients || []).slice(0, 10).join(", ") +
+                  ((pre.clients || []).length > 10 ? ", and more" : "") + "\n\n" +
+                  `${pre.closed} bound or closed lead(s) stay in their own folio.`)) return;
+
+              setBusy(true);
+              const r2 = await api("bringForward", { who: who.trim() });
+              setBusy(false);
+              addLog(r2.ok
+                ? `${r2.name}: ${r2.moved} lead(s) brought forward. They appear within a few minutes.`
+                : (r2.error || "Could not move those leads."), r2.ok ? "ok" : "err");
+            }} disabled={busy} style={{ padding:"11px 18px", borderRadius:11, cursor:"pointer",
+              fontSize:13, fontWeight:700, border:`1px solid ${GREEN}55`, background:GREEN + "0d", color:GREEN }}>
+              ⬆️ {busy ? "Working…" : "Bring older leads current"}
+            </button>
+            <button onClick={async () => {
+              setBusy(true);
+              const r = await api("diagnoseAll");
+              setBusy(false);
+              if (!r.ok) { addLog("Diagnosis failed: " + (r.error || "unknown"), "err"); return; }
+
+              addLog("── Why leads may not be arriving ──", "ok");
+              (r.producers || []).forEach(p => {
+                const summary = `${p.name}: ${p.assigned} assigned · ` +
+                  `${p.shouldBeCurrent} should be current (${p.onCurrent === null ? "?" : p.onCurrent} there) · ` +
+                  `${p.shouldBeAged} should be aged (${p.onAged === null ? "?" : p.onAged} there)` +
+                  (p.folioTabs !== undefined ? ` · ${p.folioTabs} folio tabs` : "");
+                addLog(summary, p.problems.length ? "warn" : "ok");
+                p.problems.forEach(x => addLog("    " + p.name + " — " + x, "err"));
+              });
+
+              const un = Object.keys(r.unmatched || {});
+              if (un.length) {
+                addLog("These ASSIGNED TO values reach nobody: " +
+                  un.map(k => `"${k}" (${r.unmatched[k]})`).join(" · "), "err");
+              }
+            }} disabled={busy} style={{ padding:"11px 18px", borderRadius:11, cursor:"pointer",
+              fontSize:13, fontWeight:700, border:`1px solid ${AMBER}55`, background:AMBER + "0d", color:"#92400e" }}>
+              🩺 {busy ? "Checking…" : "Why aren't leads arriving?"}
+            </button>
             <button title={"Builds any missing tab, brings layouts up to date, corrects total rows, " +
               "stamps policy ids, and clears strike-through that no longer applies. " +
               "Nothing is deleted."}
