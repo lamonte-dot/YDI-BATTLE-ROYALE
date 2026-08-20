@@ -285,6 +285,7 @@ function salesFromSnapshot(rows) {
       name: String(s.name || "").trim() || "Unknown",
       status: String(s.status || "Bound").trim(),
       price: Number(s.price) || 0,
+      folio: String(s.folio || "").trim(),      // the tab it was logged on
       boundDate: fmtDate(bound),
       boundOn: bound,
       effectiveDate: String(s.effectiveDate || "").trim(),
@@ -335,7 +336,7 @@ async function fetchProducerSales(producer, periods, log) {
     return { rows, why: "" };
   };
 
-  const attempt = async (url, label) => {
+  const attempt = async (url, label, folio) => {
     let res;
     try { res = await fetch(url, { redirect:"follow", cache:"no-store" }); }
     catch (e) { note(label, "blocked by CORS or network: " + e.message, "err"); return []; }
@@ -344,6 +345,9 @@ async function fetchProducerSales(producer, periods, log) {
     try { text = await res.text(); } catch (e) { note(label, "could not read body", "err"); return []; }
     const { rows, why } = readCsv(text);
     if (why) note(label, why, "warn");
+    // Fetched by tab name, so we know which folio these belong to. Rows found
+    // by gid have no folio and fall back to their bound date.
+    if (folio) rows.forEach(r => { r.folio = folio; });
     return rows;
   };
 
@@ -367,7 +371,7 @@ async function fetchProducerSales(producer, periods, log) {
     ...periods.flatMap(p => {
       const bare = p.name.replace(/[\/\\\[\]\*\?:]/g, "");
       const names = bare === p.name ? [p.name] : [p.name, bare];
-      return names.map(n => ({ url: csvByName(id, n), label: `tab "${n}"` }));
+      return names.map(n => ({ url: csvByName(id, n), label: `tab "${n}"`, folio: p.name }));
     }),
     ...["0","1","2","3","4","5"].filter(g => g !== String(producer.gid))
         .map(g => ({ url: csvByGid(id, g), label: `gid ${g}` })),
@@ -375,7 +379,7 @@ async function fetchProducerSales(producer, periods, log) {
 
   for (let i = 0; i < jobs.length; i += 5) {
     const batch = jobs.slice(i, i + 5);
-    const results = await Promise.all(batch.map(j => attempt(j.url, j.label)));
+    const results = await Promise.all(batch.map(j => attempt(j.url, j.label, j.folio)));
     results.forEach((rows, n) => absorb(rows, batch[n].label));
   }
 
@@ -428,10 +432,20 @@ function currentPeriodIndex(periods) {
   return last;
 }
 
+/* Sales belonging to one folio.
+   The tab a policy is logged on decides its folio — a row on the February tab
+   is February's business whatever date sits in its bound column. Only rows with
+   no tab recorded fall back to the date, which is the older CSV path.
+   With no folio at all this returns nothing, not everything: it used to return
+   every sale ever, so while the folio selection was resolving the tiles showed
+   all-time totals. */
 function inPeriod(sales, period) {
-  if (!period) return sales;
+  if (!period) return [];
   const s = new Date(period.start + "T00:00:00"), e = new Date(period.end + "T23:59:59");
-  return sales.filter(x => x.boundOn && x.boundOn >= s && x.boundOn <= e);
+  return sales.filter(x => {
+    if (x.folio) return x.folio === period.name;
+    return x.boundOn && x.boundOn >= s && x.boundOn <= e;
+  });
 }
 
 function splitLines(sales) {
@@ -1523,8 +1537,14 @@ function App() {
 
   const T = dark ? DARK : LIGHT;
   const { canvasRef, launch } = useConfetti();
-  const period = periods[periodIdx];
-  const isLivePeriod = periodIdx === currentPeriodIndex(periods);
+  /* The saved index came from whatever periods this browser last had. A new
+     folio year, or a different list from the backend, can leave it pointing
+     past the end — which used to mean no folio at all, and therefore all-time
+     numbers. Fall back to the live folio instead. */
+  const safeIdx = (periodIdx >= 0 && periodIdx < periods.length)
+    ? periodIdx : Math.max(currentPeriodIndex(periods), 0);
+  const period = periods[safeIdx];
+  const isLivePeriod = safeIdx === currentPeriodIndex(periods);
   const locked = !admin && !!meId;
 
   const prevTotals = useRef({});
@@ -1741,6 +1761,7 @@ function App() {
     { id:"badges",      label:"Badges",      icon:"🏆" },
     { id:"breakdown",   label:"Breakdown",   icon:"🧩" },
     { id:"reviews",     label:"Reviews",     icon:"⭐" },
+    { id:"history",     label:"History",     icon:"🗓️" },
     ...(admin ? [{ id:"admin", label:"Admin", icon:"🔐" }] : []),
   ];
 
@@ -1892,7 +1913,7 @@ function App() {
       <div style={{ display:"flex", alignItems:"center", gap:9, marginBottom:11, padding:"9px 14px", borderRadius:12,
         background: isLivePeriod ? GREEN + "0a" : AMBER + "0d", border:`1px solid ${isLivePeriod ? GREEN + "33" : AMBER + "44"}` }}>
         <span style={{ fontSize:15 }}>📅</span>
-        <select value={periodIdx} onChange={e => { const v = Number(e.target.value); setPeriodIdx(v); setPinnedPeriod(v !== currentPeriodIndex(periods)); }}
+        <select value={safeIdx} onChange={e => { const v = Number(e.target.value); setPeriodIdx(v); setPinnedPeriod(v !== currentPeriodIndex(periods)); }}
           style={{ ...input(T), background:T.card, fontWeight:600, flex:1, cursor:"pointer" }}>
           {periods.map((p, i) => <option key={i} value={i}>
             {p.name}{i === currentPeriodIndex(periods) ? " · live" : ""} — {prettyDate(p.start)} to {prettyDate(p.end)}
@@ -2455,6 +2476,101 @@ function App() {
                 </div>
                 <div style={{ fontSize:13, color:T.text2, fontStyle:"italic", lineHeight:1.6, paddingLeft:32 }}>“{r.review}”</div>
               </div>)}
+        </Card>
+      </div>}
+
+      {/* ══════ HISTORY ══════ */}
+      {tab === "history" && <div style={{ animation:"rise .35s" }}>
+        <Card T={T} style={{ marginBottom:14 }}>
+          <SectionTitle T={T}>Every folio</SectionTitle>
+          <div style={{ fontSize:12, color:T.text2, lineHeight:1.7, marginBottom:14 }}>
+            What each producer wrote, folio by folio. The tiles above only ever show the
+            folio you have selected — this is where the rest of the year lives.
+          </div>
+
+          <div style={{ overflowX:"auto" }}>
+            <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12.5 }}>
+              <thead>
+                <tr style={{ borderBottom:`2px solid ${T.border}` }}>
+                  <th style={{ textAlign:"left", padding:"9px 10px", fontWeight:800, color:T.muted,
+                    fontSize:11, letterSpacing:.6, textTransform:"uppercase" }}>Folio</th>
+                  {ranked.map(p => <th key={p.id} style={{ textAlign:"right", padding:"9px 10px",
+                    fontWeight:800, color:p.color, fontSize:11, whiteSpace:"nowrap" }}>{firstName(p.name)}</th>)}
+                  <th style={{ textAlign:"right", padding:"9px 10px", fontWeight:800, color:T.text,
+                    fontSize:11, letterSpacing:.6, textTransform:"uppercase" }}>Team</th>
+                </tr>
+              </thead>
+              <tbody>
+                {periods.map((per, i) => ({ per, i }))
+                  .filter(({ per }) => new Date(per.start + "T00:00:00") <= new Date())
+                  .sort((a, b) => new Date(b.per.start) - new Date(a.per.start))
+                  .map(({ per, i }) => {
+                    const perProducer = ranked.map(p => inPeriod(p.allSales, per));
+                    const teamCount = perProducer.reduce((a, s) => a + s.length, 0);
+                    const teamPrem  = perProducer.reduce((a, s) => a + s.reduce((x, y) => x + y.price, 0), 0);
+                    const isLive = i === currentPeriodIndex(periods);
+                    return <tr key={per.name} style={{ borderBottom:`1px solid ${T.line}`,
+                      background: isLive ? GREEN + "0d" : "transparent" }}>
+                      <td style={{ padding:"9px 10px", fontWeight:700, whiteSpace:"nowrap" }}>
+                        <button onClick={() => { setPeriodIdx(i); setPinnedPeriod(i !== currentPeriodIndex(periods)); setTab("dashboard"); }}
+                          style={{ background:"none", border:"none", padding:0, cursor:"pointer",
+                            color: isLive ? GREEN : T.text, fontWeight:700, fontSize:12.5 }}>
+                          {per.name}{isLive ? " · live" : ""}
+                        </button>
+                      </td>
+                      {perProducer.map((sl, j) => <td key={j} style={{ textAlign:"right", padding:"9px 10px",
+                        color: sl.length ? T.text : T.muted, whiteSpace:"nowrap" }}>
+                        {sl.length ? `${sl.length} · ${money(sl.reduce((a, x) => a + x.price, 0))}` : "—"}
+                      </td>)}
+                      <td style={{ textAlign:"right", padding:"9px 10px", fontWeight:800, whiteSpace:"nowrap" }}>
+                        {teamCount ? `${teamCount} · ${money(teamPrem)}` : "—"}
+                      </td>
+                    </tr>;
+                  })}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ fontSize:11, color:T.muted, marginTop:12, lineHeight:1.7 }}>
+            Policies · premium. Click a folio to open it on the dashboard. Only folios that
+            have started are listed, and a policy counts in the folio its bound date falls in.
+          </div>
+        </Card>
+
+        <Card T={T}>
+          <SectionTitle T={T}>Where each producer is heading</SectionTitle>
+          <div style={{ fontSize:12, color:T.text2, lineHeight:1.7, marginBottom:14 }}>
+            The last six folios, most recent on the right. Useful for seeing a run of
+            improvement that a single folio's number hides.
+          </div>
+          {ranked.map(p => {
+            const series = periods.map((per, i) => ({ per, i }))
+              .filter(({ per }) => new Date(per.start + "T00:00:00") <= new Date())
+              .sort((a, b) => new Date(a.per.start) - new Date(b.per.start))
+              .slice(-6)
+              .map(({ per }) => {
+                const sl = inPeriod(p.allSales, per);
+                return { name:per.name, count:sl.length, premium:sl.reduce((a, x) => a + x.price, 0) };
+              });
+            const peak = Math.max(1, ...series.map(x => x.premium));
+            return <div key={p.id} style={{ marginBottom:16 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:7 }}>
+                <span style={{ width:9, height:9, borderRadius:9, background:p.color, display:"inline-block" }}/>
+                <span style={{ fontSize:13, fontWeight:700 }}>{p.name}</span>
+              </div>
+              <div style={{ display:"flex", gap:6, alignItems:"flex-end", minHeight:74 }}>
+                {series.map((x, i) => <div key={i} style={{ flex:1, textAlign:"center" }}>
+                  <div title={`${x.name} — ${x.count} policies, ${money(x.premium)}`}
+                    style={{ height: Math.max(3, Math.round((x.premium / peak) * 52)),
+                      background: p.color, opacity: x.premium ? .85 : .18, borderRadius:"5px 5px 0 0" }}/>
+                  <div style={{ fontSize:9.5, color:T.muted, marginTop:4, whiteSpace:"nowrap",
+                    overflow:"hidden", textOverflow:"ellipsis" }}>{x.name.split("-")[0]}</div>
+                  <div style={{ fontSize:10, fontWeight:700, color: x.count ? T.text2 : T.muted }}>{x.count || "—"}</div>
+                </div>)}
+                {!series.length && <div style={{ fontSize:12, color:T.muted }}>No folios have started yet.</div>}
+              </div>
+            </div>;
+          })}
+          {!ranked.length && <div style={{ fontSize:12, color:T.muted }}>No producers yet.</div>}
         </Card>
       </div>}
 
