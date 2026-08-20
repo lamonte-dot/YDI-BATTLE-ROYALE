@@ -155,7 +155,15 @@ function load(key, fallback) {
 function save(key, val) { try { localStorage.setItem(K(key), JSON.stringify(val)); } catch (e) {} }
 
 const money  = v => "$" + Number(v || 0).toLocaleString("en-US", { minimumFractionDigits:2, maximumFractionDigits:2 });
-const short  = v => { v = Number(v || 0); return v >= 1000 ? "$" + (v/1000).toFixed(v >= 10000 ? 0 : 1) + "K" : "$" + Math.round(v); };
+/* Premium in full, to the cent.
+   It used to abbreviate — $72K for $72,481.77 — which reads fine on a tile but
+   is no use when someone is checking a number against a spreadsheet. Nobody
+   reconciles a folio in thousands. */
+const short  = v => money(v);
+
+/* The abbreviated form, kept for axis labels and other places where a full
+   figure would not fit. */
+const shortAxis = v => { v = Number(v || 0); return v >= 1000 ? "$" + (v/1000).toFixed(v >= 10000 ? 0 : 1) + "K" : "$" + Math.round(v); };
 const pctOf  = (a, b) => b > 0 ? Math.min((a / b) * 100, 100) : 0;
 const prettyDate = iso => { if (!iso) return ""; const d = new Date(iso + "T12:00:00"); return isNaN(d) ? iso : (d.getMonth()+1) + "/" + d.getDate() + "/" + d.getFullYear(); };
 const firstName = n => String(n || "").split(" ")[0];
@@ -2014,7 +2022,8 @@ function App() {
                 const p = pctOf(g.val, g.goal), done = p >= 100;
                 return <div key={i} style={{ background:"rgba(255,255,255,.11)", borderRadius:15, padding:"15px 17px", border:"1px solid rgba(255,255,255,.2)" }}>
                   <div style={{ fontSize:11, color:g.accent, fontWeight:800, letterSpacing:1, marginBottom:6 }}>{g.label}</div>
-                  <div className="display" style={{ fontSize:38, color:"#fff", lineHeight:1 }}>{g.fmt ? g.fmt(g.val) : g.val}</div>
+                  <div className="display" style={{ fontSize: g.fmt ? 27 : 38, color:"#fff",
+                    lineHeight:1.05, wordBreak:"break-word" }}>{g.fmt ? g.fmt(g.val) : g.val}</div>
                   <div style={{ fontSize:12, color:"#bfdbfe", marginTop:5 }}>
                     Goal {g.fmt ? g.fmt(g.goal) : g.goal}{done ? " · reached" : ` · ${g.fmt ? g.fmt(Math.max(0, g.goal - g.val)) : Math.max(0, g.goal - g.val)} to go`}
                   </div>
@@ -2169,10 +2178,12 @@ function App() {
         {ranked.map(p => {
           const g = p.goals || DEFAULT_GOALS, l = splitLines(p.sales);
           const rings = [
-            { label:"Premium",       color:AMBER,  val:p.premium,        goal:g.premium,       center:short(p.premium),   arc:short(p.premium) },
-            { label:"🏠 Pers. Lines", color:INDIGO, val:l.personal.count,  goal:g.personalLines, center:l.personal.count,   arc:short(l.personal.premium) },
-            { label:"❤️ Life",        color:PINK,   val:l.life.count,      goal:g.life,          center:l.life.count,       arc:short(l.life.premium) },
-            { label:"🏢 Commercial",  color:GREEN,  val:l.commercial.count, goal:g.commercial,   center:l.commercial.count, arc:short(l.commercial.premium) },
+            // The centre of a donut is a small space, so it keeps the compact
+            // form; the label beside it carries the exact figure.
+            { label:"Premium",       color:AMBER,  val:p.premium,        goal:g.premium,       center:shortAxis(p.premium), arc:money(p.premium) },
+            { label:"🏠 Pers. Lines", color:INDIGO, val:l.personal.count,  goal:g.personalLines, center:l.personal.count,   arc:money(l.personal.premium) },
+            { label:"❤️ Life",        color:PINK,   val:l.life.count,      goal:g.life,          center:l.life.count,       arc:money(l.life.premium) },
+            { label:"🏢 Commercial",  color:GREEN,  val:l.commercial.count, goal:g.commercial,   center:l.commercial.count, arc:money(l.commercial.premium) },
             { label:"Total policies", color:p.color, val:p.policies,       goal:g.policies,      center:p.policies,         arc:"" },
           ];
           return <Card key={p.id} T={T} style={{ marginBottom:14, borderColor: p.id === whoId ? p.color + "55" : T.border }}>
@@ -2323,7 +2334,7 @@ function App() {
                   <span style={{ fontSize:19 }}>{p.avatar}</span>
                   <div>
                     <div style={{ fontSize:11, fontWeight:700, color:p.color }}>{firstName(p.name)}{p.id === whoId ? " · you" : ""}</div>
-                    <div style={{ fontSize:10, color:T.muted }}>{short(b.reduce((a, x) => a + x.premium, 0))}</div>
+                    <div style={{ fontSize:10, color:T.muted }}>{shortAxis(b.reduce((a, x) => a + x.premium, 0))}</div>
                   </div>
                 </div>
                 <LineChart data={b} field="premium" color={p.color} fmt={short} height={78} T={T} id={"t" + p.id}/>
@@ -2353,7 +2364,7 @@ function App() {
           </Card>
           <Card T={T}>
             <SectionTitle T={T}>Premium mix</SectionTitle>
-            <Donut T={T} centerVal={short(teamPremium)} centerLabel="team premium" segments={[
+            <Donut T={T} centerVal={shortAxis(teamPremium)} centerLabel={money(teamPremium)} segments={[
               { color:INDIGO, value:teamLines.personal.premium },
               { color:PINK,   value:teamLines.life.premium },
               { color:GREEN,  value:teamLines.commercial.premium }]}/>
