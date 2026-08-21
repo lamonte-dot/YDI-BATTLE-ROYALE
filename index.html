@@ -1512,6 +1512,91 @@ function ProducersModal({ producers, onSave, onClose, T }) {
    12. APP
    ══════════════════════════════════════════════════════════════════════ */
 
+/**
+ * What clients said, one at a time.
+ *
+ * A wall of reviews gets skimmed and forgotten; one at a time gets read. It
+ * moves on by itself every eight seconds and stops the moment somebody hovers,
+ * so reading a long one is never a race against the timer.
+ */
+function ReviewSlideshow({ T, reviews, producers }) {
+  const [i, setI] = React.useState(0);
+  const [paused, setPaused] = React.useState(false);
+
+  const list = reviews || [];
+  const n = list.length;
+
+  React.useEffect(() => { if (i >= n) setI(0); }, [n, i]);
+
+  React.useEffect(() => {
+    if (paused || n < 2) return;
+    const id = setInterval(() => setI(x => (x + 1) % n), 8000);
+    return () => clearInterval(id);
+  }, [paused, n]);
+
+  if (!n) {
+    return <Card T={T} style={{ textAlign:"center", padding:"34px 22px" }}>
+      <div style={{ fontSize:34, marginBottom:10 }}>⭐</div>
+      <div style={{ fontSize:14, fontWeight:700, marginBottom:6 }}>No reviews yet</div>
+      <div style={{ fontSize:12.5, color:T.muted, lineHeight:1.7, maxWidth:420, margin:"0 auto" }}>
+        Add one below as they come in and it appears here, credited to whoever earned it.
+      </div>
+    </Card>;
+  }
+
+  const r = list[Math.min(i, n - 1)];
+  const who = producers.find(p => p.id === r.producerId || firstName(p.name) === firstName(r.producer || ""));
+  const accent = who ? who.color : AMBER;
+  const step = d => setI(x => (x + d + n) % n);
+
+  return <Card T={T} style={{ position:"relative", overflow:"hidden", padding:0 }}
+    onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
+
+    <div style={{ position:"absolute", inset:0,
+      background:`linear-gradient(135deg, ${accent}14, transparent 62%)` }}/>
+
+    <div style={{ position:"relative", padding:"28px 30px 22px" }}>
+      <div style={{ fontSize:19, letterSpacing:2, marginBottom:14, color:AMBER }}>
+        {"★".repeat(r.stars)}<span style={{ color:T.line }}>{"★".repeat(5 - r.stars)}</span>
+      </div>
+
+      <div style={{ fontSize:16.5, lineHeight:1.72, color:T.text, fontWeight:500,
+        minHeight:88, marginBottom:18 }}>
+        “{r.text}”
+      </div>
+
+      <div style={{ display:"flex", alignItems:"center", gap:11, flexWrap:"wrap" }}>
+        <span style={{ width:9, height:9, borderRadius:9, background:accent, display:"inline-block" }}/>
+        <span style={{ fontSize:13.5, fontWeight:800 }}>{r.client}</span>
+        {r.producer && <span style={{ fontSize:12, color:T.muted }}>
+          · earned by <span style={{ color:accent, fontWeight:700 }}>{firstName(r.producer)}</span>
+        </span>}
+        {r.date && <span style={{ fontSize:11.5, color:T.muted }}>
+          · {prettyDate(String(r.date).slice(0, 10))}</span>}
+        {r.link && <a href={r.link} target="_blank" rel="noreferrer"
+          style={{ fontSize:11.5, color:INDIGO, fontWeight:700, marginLeft:"auto" }}>Open on Google ↗</a>}
+      </div>
+    </div>
+
+    {n > 1 && <div style={{ position:"relative", display:"flex", alignItems:"center", gap:10,
+      padding:"11px 30px 18px" }}>
+      <button onClick={() => step(-1)} style={{ ...btn(T), padding:"3px 11px", fontSize:13 }}>‹</button>
+      <button onClick={() => step(1)}  style={{ ...btn(T), padding:"3px 11px", fontSize:13 }}>›</button>
+
+      <div style={{ display:"flex", gap:5, marginLeft:4, flexWrap:"wrap" }}>
+        {list.slice(0, 24).map((_, k) => <span key={k} onClick={() => setI(k)}
+          style={{ width:k === i ? 17 : 7, height:7, borderRadius:7, cursor:"pointer",
+            background: k === i ? accent : T.line, transition:"width .2s" }}/>)}
+      </div>
+
+      <span style={{ marginLeft:"auto", fontSize:11, color:T.muted }}>
+        {i + 1} of {n}{paused ? " · paused" : ""}
+      </span>
+    </div>}
+  </Card>;
+}
+
+
 function App() {
   /* ── State ─────────────────────────────────────────────────────────── */
   const [dark, setDark] = useState(() => load("dark", false));
@@ -1598,6 +1683,12 @@ function App() {
   const [leads, setLeads] = useState(null);
   const [tplDraft, setTplDraft] = useState("");
 
+  /* Google reviews, entered once and kept here. Named apart from the `reviews`
+     derived below, which is whatever agents typed into the Reviews column of a
+     folio row — a different thing, and both are worth keeping. */
+  const [googleReviews, setGoogleReviews] = useState([]);
+  const [rvDraft, setRvDraft] = useState({ client:"", stars:5, text:"", link:"", producer:"" });
+
   const pullLeadStatus = useCallback(async () => {
     if (!hasBackend()) return;
     const r = await api("leadStatus");
@@ -1626,6 +1717,7 @@ function App() {
     if (r.teamGoals) { setTeamGoals(r.teamGoals); save("teamGoals", r.teamGoals); }
 
     setCloud({ state:"ok", error:"", build: r.build || "", templateId: r.templateId || "" });
+    if (Array.isArray(r.reviews)) setGoogleReviews(r.reviews);
     if (r.build && r.build !== EXPECTED_BUILD)
       addLog(`Deployment is serving build ${r.build}; this page expects ${EXPECTED_BUILD}. Redeploy a new version.`, "warn");
     addLog(`Backend connected — ${(r.producers || []).length} producers, ${(r.periods || []).length} folios`, "ok");
@@ -2489,9 +2581,91 @@ function App() {
 
       {/* ══════ REVIEWS ══════ */}
       {tab === "reviews" && <div style={{ animation:"rise .35s" }}>
+
+        <div style={{ marginBottom:16 }}>
+          <ReviewSlideshow T={T} reviews={googleReviews} producers={producers}/>
+        </div>
+
+        {admin && <Card T={T} style={{ marginBottom:16 }}>
+          <SectionTitle T={T}>Add a Google review</SectionTitle>
+          <div style={{ fontSize:12, color:T.text2, lineHeight:1.7, marginBottom:13 }}>
+            Google will not give up the words behind a review link — its API returns five
+            reviews per business, chosen by them, with no way to ask for a particular one
+            and no record of who earned it. So the review goes in here once and then
+            belongs to us: it keeps working whatever Google changes, and it carries the
+            credit the API never had.
+          </div>
+
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(185px,1fr))",
+            gap:9, marginBottom:9 }}>
+            <input value={rvDraft.client} onChange={e => setRvDraft({ ...rvDraft, client:e.target.value })}
+              placeholder="Client name" style={{ ...input(T), background:T.card, fontSize:12.5 }}/>
+            <select value={rvDraft.producer} onChange={e => setRvDraft({ ...rvDraft, producer:e.target.value })}
+              style={{ ...input(T), background:T.card, fontSize:12.5 }}>
+              <option value="">Who earned it?</option>
+              {producers.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
+            </select>
+            <select value={rvDraft.stars} onChange={e => setRvDraft({ ...rvDraft, stars:Number(e.target.value) })}
+              style={{ ...input(T), background:T.card, fontSize:12.5 }}>
+              {[5,4,3,2,1].map(n => <option key={n} value={n}>{"★".repeat(n)} · {n} star{n === 1 ? "" : "s"}</option>)}
+            </select>
+            <input value={rvDraft.link} onChange={e => setRvDraft({ ...rvDraft, link:e.target.value })}
+              placeholder="Link to the review (optional)" style={{ ...input(T), background:T.card, fontSize:12.5 }}/>
+          </div>
+
+          <textarea value={rvDraft.text} onChange={e => setRvDraft({ ...rvDraft, text:e.target.value })}
+            placeholder="What they said — paste it straight from Google" rows={3}
+            style={{ ...input(T), background:T.card, width:"100%", fontSize:12.5,
+              resize:"vertical", fontFamily:"inherit", marginBottom:10 }}/>
+
+          <button disabled={busy} onClick={async () => {
+            if (!rvDraft.client.trim()) return addLog("Add the client's name.", "warn");
+            if (!rvDraft.text.trim())   return addLog("Add what they said — that is the part worth showing.", "warn");
+            setBusy(true);
+            const r = await api("addReview", rvDraft);
+            setBusy(false);
+            if (!r.ok) return addLog(r.error || "Could not save that review.", "err");
+            setGoogleReviews(r.reviews || []);
+            setRvDraft({ client:"", stars:5, text:"", link:"", producer:"" });
+            addLog("Review from " + (r.added ? r.added.client : "the client") + " added.", "ok");
+            launch();
+          }} style={{ ...btn(T,"go"), padding:"10px 20px", fontSize:13 }}>
+            {busy ? "Saving…" : "⭐ Add review"}
+          </button>
+        </Card>}
+
+        {admin && googleReviews.length > 0 && <Card T={T} style={{ marginBottom:16 }}>
+          <SectionTitle T={T}>Google reviews on file · {googleReviews.length}</SectionTitle>
+          <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
+            {[...googleReviews].reverse().map(r => <div key={r.id} style={{ display:"flex", gap:10,
+              alignItems:"flex-start", padding:"9px 11px", borderRadius:9,
+              border:`1px solid ${T.line}`, background:T.card }}>
+              <span style={{ color:AMBER, fontSize:12, whiteSpace:"nowrap" }}>{"★".repeat(r.stars)}</span>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:12.5, fontWeight:700 }}>{r.client}
+                  {r.producer && <span style={{ color:T.muted, fontWeight:400 }}> · {firstName(r.producer)}</span>}
+                </div>
+                <div style={{ fontSize:11.5, color:T.text2, lineHeight:1.6 }}>{r.text}</div>
+              </div>
+              <button onClick={async () => {
+                if (!confirm(`Remove the review from ${r.client}?`)) return;
+                const res = await api("removeReview", { id:r.id });
+                if (!res.ok) return addLog(res.error || "Could not remove it.", "err");
+                setGoogleReviews(res.reviews || []);
+                addLog("Review removed.", "ok");
+              }} style={{ ...btn(T), padding:"3px 9px", fontSize:11, color:RED }}>🗑</button>
+            </div>)}
+          </div>
+        </Card>}
+
         <div className="grid4" style={{ marginBottom:16 }}>
           {producers.map(p => {
-            const n = p.sales.filter(s => s.review).length, l = splitLines(p.sales);
+            /* Counted from the reviews actually recorded, so the number means
+               something rather than depending on a spreadsheet cell somebody may
+               or may not have filled in. */
+            const n = googleReviews.filter(r =>
+              r.producerId === p.id || firstName(r.producer || "") === firstName(p.name)).length;
+            const l = splitLines(p.sales);
             return <Card key={p.id} T={T} style={{ textAlign:"center" }}>
               <div style={{ fontSize:29, marginBottom:5 }}>{p.avatar}</div>
               <div style={{ fontSize:13, fontWeight:800, color:p.color, marginBottom:7 }}>{firstName(p.name)}</div>
