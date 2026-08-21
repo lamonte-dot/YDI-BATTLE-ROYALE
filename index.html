@@ -2988,9 +2988,11 @@ function App() {
                 const summary = `${p.name}: ${p.assigned} assigned · ` +
                   `${p.shouldBeCurrent} should be current (${p.onCurrent === null ? "?" : p.onCurrent} there) · ` +
                   `${p.shouldBeAged} should be aged (${p.onAged === null ? "?" : p.onAged} there)` +
+                  (p.settled ? ` · ${p.settled} settled before the cut-off` : "") +
                   (p.folioTabs !== undefined ? ` · ${p.folioTabs} folio tabs` : "");
                 addLog(summary, p.problems.length ? "warn" : "ok");
                 p.problems.forEach(x => addLog("    " + p.name + " — " + x, "err"));
+                if (p.note) addLog("    " + p.name + " — " + p.note, "warn");
               });
 
               const un = Object.keys(r.unmatched || {});
