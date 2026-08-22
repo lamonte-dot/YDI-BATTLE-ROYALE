@@ -3006,6 +3006,21 @@ function App() {
             </button>
             <button onClick={async () => {
               setBusy(true);
+              const r = await api("findDupes");
+              setBusy(false);
+              if (!r.ok) return addLog(r.error || "Could not check.", "err");
+              if (!r.repeats) return addLog("Every client appears once on the lead sheet.", "ok");
+              addLog(`${r.repeats} client(s) appear more than once · ` +
+                     `${r.split} are tagged to different producers`, r.split ? "warn" : "ok");
+              (r.clients || []).slice(0, 12).forEach(c =>
+                addLog(`    ${c.name} — ` + c.rows.map(x =>
+                  `row ${x.row} ${x.who || "(nobody)"}${x.id ? "" : " NO ID"}`).join("  ·  "), "warn"));
+            }} disabled={busy} style={{ padding:"11px 18px", borderRadius:11, cursor:"pointer",
+              fontSize:13, fontWeight:700, border:`1px solid ${RED}55`, background:RED + "0d", color:RED }}>
+              🔍 {busy ? "Checking…" : "Find leads that changed hands"}
+            </button>
+            <button onClick={async () => {
+              setBusy(true);
               const r = await api("fixDropdowns");
               setBusy(false);
               addLog(r.ok
