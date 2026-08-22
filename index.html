@@ -22,9 +22,22 @@ a{color:inherit}
 @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 /* A review appears gently rather than snapping in — abrupt movement beside the
    numbers reads as an alert; this reads as something worth pausing on. */
-@keyframes reviewFade{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
-.review-fade{animation:reviewFade .9s ease-out both;animation-delay:.25s}
-@media (prefers-reduced-motion:reduce){.review-fade{animation:none}}
+/* A review floats up into place.
+   It rises from below rather than dropping in: arriving downward reads as a
+   notification landing on you, rising reads as something surfacing. Slow, and
+   eased so it decelerates into position instead of stopping dead.
+   The three parts follow each other by a beat — words, then stars, then who
+   said it — so it settles rather than appearing all at once. */
+@keyframes reviewFloat{
+  from{opacity:0;transform:translateY(18px)}
+  to  {opacity:1;transform:translateY(0)}
+}
+.review-fade{animation:reviewFloat 1.15s cubic-bezier(.16,.84,.34,1) both;animation-delay:.3s}
+.review-fade .rv-stars{animation:reviewFloat 1.15s cubic-bezier(.16,.84,.34,1) both;animation-delay:.52s}
+.review-fade .rv-who  {animation:reviewFloat 1.15s cubic-bezier(.16,.84,.34,1) both;animation-delay:.68s}
+@media (prefers-reduced-motion:reduce){
+  .review-fade,.review-fade .rv-stars,.review-fade .rv-who{animation:none}
+}
 @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-24px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
 @keyframes revv{0%,100%{transform:translateX(0)}50%{transform:translateX(5px)}}
 @keyframes gallop{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
@@ -2048,10 +2061,10 @@ function App() {
                   : shownReview.text}”
             </div>
             {/* Stars under the words, because the words are the point. */}
-            <div style={{ marginTop:5, fontSize:12, color:AMBER, letterSpacing:1.5 }}>
+            <div className="rv-stars" style={{ marginTop:5, fontSize:12, color:AMBER, letterSpacing:1.5 }}>
               {"★".repeat(shownReview.stars)}<span style={{ color:T.line }}>{"★".repeat(5 - shownReview.stars)}</span>
             </div>
-            <div style={{ marginTop:2, fontSize:10.5, color:T.muted }}>
+            <div className="rv-who" style={{ marginTop:2, fontSize:10.5, color:T.muted }}>
               {shownReview.client}{shownReview.producer ? " · " + firstName(shownReview.producer) : ""}
             </div>
           </div>}
