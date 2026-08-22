@@ -2984,6 +2984,9 @@ function App() {
               if (!r.ok) { addLog("Diagnosis failed: " + (r.error || "unknown"), "err"); return; }
 
               addLog("── Why leads may not be arriving ──", "ok");
+              (r.sharing || []).forEach(pair => addLog(
+                "⚠ " + pair + " share one spreadsheet. Every lead for either lands on the " +
+                "same sheet. Give each their own file before anything else.", "err"));
               (r.producers || []).forEach(p => {
                 const summary = `${p.name}: ${p.assigned} assigned · ` +
                   `${p.shouldBeCurrent} should be current (${p.onCurrent === null ? "?" : p.onCurrent} there) · ` +
@@ -3023,10 +3026,10 @@ function App() {
               setBusy(true);
               const r = await api("fixDropdowns");
               setBusy(false);
-              addLog(r.ok
-                ? "Lead sheet dropdowns rewritten. Every value already in use was kept, and " +
-                  "anything outside the list now warns instead of refusing."
-                : (r.error || "Could not rewrite the dropdowns."), r.ok ? "ok" : "err");
+              if (!r.ok) return addLog(r.error || "Could not rewrite the dropdowns.", "err");
+              addLog("Lead sheet dropdowns rewritten — every value already in use was kept.", "ok");
+              (r.proof || []).forEach(line =>
+                addLog("    " + line, /STILL REFUSES/.test(line) ? "err" : "ok"));
             }} disabled={busy} style={{ padding:"11px 18px", borderRadius:11, cursor:"pointer",
               fontSize:13, fontWeight:700, border:`1px solid ${INDIGO}55`, background:INDIGO + "0d", color:INDIGO }}>
               📋 {busy ? "Working…" : "Fix lead sheet dropdowns"}
