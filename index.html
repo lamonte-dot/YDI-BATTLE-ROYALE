@@ -3010,6 +3010,38 @@ function App() {
               🩺 {busy ? "Checking…" : "Why aren't leads arriving?"}
             </button>
             <button onClick={async () => {
+              const who = prompt(
+                "Empty the working lists?\n\n" +
+                "Leave blank for every producer, or type one name to do just theirs.\n\n" +
+                "Bound policies on folio tabs are not touched, and the lead sheet keeps " +
+                "every lead. Only the agent-facing lists are emptied.");
+              if (who === null) return;
+
+              setBusy(true);
+              const pre = await api("clearLists", { who: who.trim(), dryRun: "true" });
+              setBusy(false);
+              if (!pre.ok && pre.error) return addLog(pre.error, "err");
+
+              (pre.report || []).forEach(line => addLog("    " + line, "warn"));
+              if (!pre.rows) return addLog("The working lists are already empty.", "ok");
+
+              if (!confirm(`Remove ${pre.rows} row(s) from the working lists?\n\n` +
+                  "Every assignment is also marked as settled, so nothing comes back on " +
+                  "its own — the lists fill again only with what you assign from here.\n\n" +
+                  "Bound policies stay. The lead sheet keeps everything.")) return;
+
+              setBusy(true);
+              const r = await api("clearLists", { who: who.trim() });
+              setBusy(false);
+              addLog(r.ok
+                ? `${r.rows} row(s) cleared · ${r.settled} assignment(s) settled. Assign a lead in the tracker and it will appear within a minute.`
+                : (r.error || "Could not clear the lists."), r.ok ? "ok" : "err");
+              (r.failed || []).forEach(f => addLog("    " + f, "err"));
+            }} disabled={busy} style={{ padding:"11px 18px", borderRadius:11, cursor:"pointer",
+              fontSize:13, fontWeight:700, border:`1px solid ${RED}55`, background:RED + "0d", color:RED }}>
+              🧽 {busy ? "Working…" : "Empty working lists"}
+            </button>
+            <button onClick={async () => {
               setBusy(true);
               const r = await api("preflight");
               setBusy(false);
