@@ -22,22 +22,6 @@ a{color:inherit}
 @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 /* A review appears gently rather than snapping in — abrupt movement beside the
    numbers reads as an alert; this reads as something worth pausing on. */
-/* A review floats up into place.
-   It rises from below rather than dropping in: arriving downward reads as a
-   notification landing on you, rising reads as something surfacing. Slow, and
-   eased so it decelerates into position instead of stopping dead.
-   The three parts follow each other by a beat — words, then stars, then who
-   said it — so it settles rather than appearing all at once. */
-@keyframes reviewFloat{
-  from{opacity:0;transform:translateY(18px)}
-  to  {opacity:1;transform:translateY(0)}
-}
-.review-fade{animation:reviewFloat 1.15s cubic-bezier(.16,.84,.34,1) both;animation-delay:.3s}
-.review-fade .rv-stars{animation:reviewFloat 1.15s cubic-bezier(.16,.84,.34,1) both;animation-delay:.52s}
-.review-fade .rv-who  {animation:reviewFloat 1.15s cubic-bezier(.16,.84,.34,1) both;animation-delay:.68s}
-@media (prefers-reduced-motion:reduce){
-  .review-fade,.review-fade .rv-stars,.review-fade .rv-who{animation:none}
-}
 @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-24px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
 @keyframes revv{0%,100%{transform:translateX(0)}50%{transform:translateX(5px)}}
 @keyframes gallop{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
@@ -1719,34 +1703,8 @@ function App() {
      folio row — a different thing, and both are worth keeping. */
   const [googleReviews, setGoogleReviews] = useState([]);
 
-  /* Which review greets everyone, chosen after the reviews exist.
-   *
-   * This sat above the line that declares googleReviews, which in a `const`
-   * world is not a value that is merely empty — reading it throws, and the whole
-   * dashboard stops rendering before it draws anything. It showed up as "the
-   * reviews are not appearing" rather than as an error, because the page never
-   * got far enough to show one.
-   *
-   * Four stars and up. A three-star review is worth reading in the admin list
-   * and worth acting on, but it is not what the team wants on arriving. */
-  const shownReview = useMemo(() => {
-    const good = (googleReviews || []).filter(r => r && r.text && (r.stars || 5) >= 4);
-    if (!good.length) return null;
-    return good[reviewTick % good.length];
-  }, [googleReviews, reviewTick]);
   const [rvEdit, setRvEdit] = useState(null);
 
-  /* Which review to show up top.
-   *
-   * One per page load, moving on each time, so an agent who refreshes through
-   * the day sees the whole wall rather than the same review over and over. The
-   * position is kept between loads; the reviews themselves are not, so a review
-   * removed or added simply changes what comes next. */
-  const [reviewTick] = useState(() => {
-    const n = Number(load("reviewTick", 0)) || 0;
-    try { localStorage.setItem(NS + "reviewTick", JSON.stringify(n + 1)); } catch (e) {}
-    return n;
-  });
   const [rvDraft, setRvDraft] = useState({ client:"", stars:5, text:"", link:"", producer:"" });
 
   const pullLeadStatus = useCallback(async () => {
@@ -2044,6 +2002,18 @@ function App() {
 
     <div style={{ maxWidth:1240, margin:"0 auto" }}>
 
+      {/* A backend that cannot be reached, said plainly.
+          It was reported into the admin log, which nobody but an admin ever
+          sees — so for everyone else the page simply had no reviews, no
+          leaderboard movement, and no explanation. */}
+      {cloud.state === "error" && <div style={{ marginBottom:12, padding:"10px 14px",
+        borderRadius:10, border:`1px solid ${RED}55`, background:RED + "12",
+        fontSize:12.5, color: dark ? "#fca5a5" : "#991b1b", lineHeight:1.6 }}>
+        <b>The dashboard could not reach the backend.</b> Numbers and reviews are showing
+        whatever was last loaded on this device, and may be out of date.
+        {cloud.error ? <span style={{ opacity:.85 }}> · {cloud.error}</span> : null}
+      </div>}
+
       {/* ── Header ── */}
       <header style={{ display:"flex", alignItems:"center", gap:14, marginBottom:14, flexWrap:"wrap" }}>
         <div style={{ width:56, height:56, borderRadius:15, flexShrink:0, display:"flex", alignItems:"center",
@@ -2058,26 +2028,6 @@ function App() {
           </div>
         </div>
 
-        {/* A customer's own words, in the space between the title and the
-            buttons. A different one each time the page loads, so the wall of
-            numbers is not the only thing anybody sees on arriving. */}
-        <div style={{ flex:1, minWidth:200, display:"flex", justifyContent:"center", padding:"0 10px" }}>
-          {shownReview && <div key={shownReview.id} className="review-fade"
-            style={{ textAlign:"center", maxWidth:560 }}>
-            <div style={{ fontSize:12.5, lineHeight:1.55, color:T.text2, fontStyle:"italic" }}>
-              “{shownReview.text.length > 190
-                  ? shownReview.text.slice(0, 190).trim() + "…"
-                  : shownReview.text}”
-            </div>
-            {/* Stars under the words, because the words are the point. */}
-            <div className="rv-stars" style={{ marginTop:5, fontSize:12, color:AMBER, letterSpacing:1.5 }}>
-              {"★".repeat(shownReview.stars)}<span style={{ color:T.line }}>{"★".repeat(5 - shownReview.stars)}</span>
-            </div>
-            <div className="rv-who" style={{ marginTop:2, fontSize:10.5, color:T.muted }}>
-              {shownReview.client}{shownReview.producer ? " · " + firstName(shownReview.producer) : ""}
-            </div>
-          </div>}
-        </div>
         <div style={{ display:"flex", gap:6, flexWrap:"wrap", justifyContent:"flex-end" }}>
           <button onClick={() => persist.dark(!dark)} title="Toggle theme" style={{ ...btn(T), padding:"9px 12px" }}>{dark ? "☀️" : "🌙"}</button>
           <button onClick={() => openGated("messages")} style={{ ...btn(T), padding:"9px 12px" }}>📋 Board</button>
