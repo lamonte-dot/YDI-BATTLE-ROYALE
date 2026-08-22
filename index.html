@@ -1718,8 +1718,19 @@ function App() {
 
     setCloud({ state:"ok", error:"", build: r.build || "", templateId: r.templateId || "" });
     if (Array.isArray(r.reviews)) setGoogleReviews(r.reviews);
-    if (r.build && r.build !== EXPECTED_BUILD)
-      addLog(`Deployment is serving build ${r.build}; this page expects ${EXPECTED_BUILD}. Redeploy a new version.`, "warn");
+    /* The deployed script is older than this page.
+       Saving a script does not change what the web app serves — that only
+       happens on a new deployment version, and it is the single easiest step to
+       miss. Everything then looks broken in ways that make no sense: buttons
+       that do nothing, actions reported as unknown. So the message says exactly
+       which menu to use rather than leaving it to be worked out. */
+    if (r.build && r.build !== EXPECTED_BUILD) {
+      addLog(`The deployed script is build ${r.build}; this page expects ${EXPECTED_BUILD}.`, "err");
+      addLog("Saving the script is not enough. In the Battle Royale Apps Script: " +
+             "Deploy → Manage deployments → ✏️ (pencil) → Version: New version → Deploy.", "err");
+      addLog("Until then, anything added since build " + r.build + " will not work — " +
+             "buttons may do nothing at all.", "warn");
+    }
     addLog(`Backend connected — ${(r.producers || []).length} producers, ${(r.periods || []).length} folios`, "ok");
     return r;
   }, [addLog]);
