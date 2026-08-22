@@ -3076,6 +3076,28 @@ function App() {
             </button>
             <button onClick={async () => {
               setBusy(true);
+              const pre = await api("unbindGhosts", { dryRun: "true" });
+              setBusy(false);
+              if (!pre.ok) return addLog(pre.error || "Could not check.", "err");
+              if (!pre.count) return addLog("Every lead marked Bound has a policy row behind it.", "ok");
+
+              (pre.names || []).slice(0, 15).forEach(n => addLog("    " + n, "warn"));
+              if (!confirm(`Take "Bound" off ${pre.count} lead(s) that have no policy row?\n\n` +
+                  "Any other status they carry is kept — a lead reading \"Quoted, Bound\" goes " +
+                  "back to \"Quoted\".\n\nLeads with a real policy row are not touched.")) {
+                return addLog("Cancelled — nothing was changed.", "warn");
+              }
+              setBusy(true);
+              const r = await api("unbindGhosts");
+              setBusy(false);
+              addLog(r.ok ? `${r.count} lead(s) unmarked.` : (r.error || "Could not do that."),
+                     r.ok ? "ok" : "err");
+            }} disabled={busy} style={{ padding:"11px 18px", borderRadius:11, cursor:"pointer",
+              fontSize:13, fontWeight:700, border:`1px solid ${AMBER}55`, background:AMBER + "0d", color:"#92400e" }}>
+              ↩️ {busy ? "Checking…" : "Unmark leads bound in error"}
+            </button>
+            <button onClick={async () => {
+              setBusy(true);
               const r = await api("preflight");
               setBusy(false);
               if (!r.checks) return addLog(r.error || "Could not run the check.", "err");
