@@ -20,6 +20,11 @@ a{color:inherit}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.55;transform:scale(1.25)}}
 @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+/* A review appears gently rather than snapping in — abrupt movement beside the
+   numbers reads as an alert; this reads as something worth pausing on. */
+@keyframes reviewFade{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.review-fade{animation:reviewFade .9s ease-out both;animation-delay:.25s}
+@media (prefers-reduced-motion:reduce){.review-fade{animation:none}}
 @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-24px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
 @keyframes revv{0%,100%{transform:translateX(0)}50%{transform:translateX(5px)}}
 @keyframes gallop{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
@@ -1653,7 +1658,27 @@ function App() {
     ? periodIdx : Math.max(currentPeriodIndex(periods), 0);
   const period = periods[safeIdx];
   const isLivePeriod = safeIdx === currentPeriodIndex(periods);
+
+  /* Did this happen inside the folio being looked at?
+     Used for the review counts, which are a figure about a period rather than a
+     running total — entering a review from March should not move August. */
+  const inFolio = useCallback(when => {
+    if (!period || !when) return false;
+    const d = new Date(when);
+    if (isNaN(d.getTime())) return false;
+    const start = new Date(period.start + "T00:00:00");
+    const end   = new Date(period.end   + "T23:59:59");
+    return d >= start && d <= end;
+  }, [period]);
   const locked = !admin && !!meId;
+
+  /* Five stars only. A three-star review is worth reading in the admin list and
+     worth acting on, but it is not what the team wants greeting them. */
+  const shownReview = useMemo(() => {
+    const good = (googleReviews || []).filter(r => r && r.text && (r.stars || 5) >= 4);
+    if (!good.length) return null;
+    return good[reviewTick % good.length];
+  }, [googleReviews, reviewTick]);
 
   const prevTotals = useRef({});
   const celebrated = useRef(new Set(load("celebrated", [])));
@@ -1687,6 +1712,19 @@ function App() {
      derived below, which is whatever agents typed into the Reviews column of a
      folio row — a different thing, and both are worth keeping. */
   const [googleReviews, setGoogleReviews] = useState([]);
+  const [rvEdit, setRvEdit] = useState(null);
+
+  /* Which review to show up top.
+   *
+   * One per page load, moving on each time, so an agent who refreshes through
+   * the day sees the whole wall rather than the same review over and over. The
+   * position is kept between loads; the reviews themselves are not, so a review
+   * removed or added simply changes what comes next. */
+  const [reviewTick] = useState(() => {
+    const n = Number(load("reviewTick", 0)) || 0;
+    try { localStorage.setItem(NS + "reviewTick", JSON.stringify(n + 1)); } catch (e) {}
+    return n;
+  });
   const [rvDraft, setRvDraft] = useState({ client:"", stars:5, text:"", link:"", producer:"" });
 
   const pullLeadStatus = useCallback(async () => {
@@ -1991,11 +2029,32 @@ function App() {
           border:`1px solid ${T.border}`, boxShadow:"0 4px 14px rgba(15,23,42,.10)" }}>
           <img src={LOGO} alt="Young Douglas Insurance Services" style={{ height:38, width:"auto", display:"block" }}/>
         </div>
-        <div style={{ flex:1, minWidth:180 }}>
+        <div style={{ minWidth:180 }}>
           <div className="display" style={{ fontSize:27, lineHeight:1.05 }}>{CONFIG.app}</div>
           <div style={{ fontSize:11, color:T.muted, letterSpacing:1.6, textTransform:"uppercase", fontWeight:600 }}>
             {CONFIG.agency} · v{CONFIG.version}
           </div>
+        </div>
+
+        {/* A customer's own words, in the space between the title and the
+            buttons. A different one each time the page loads, so the wall of
+            numbers is not the only thing anybody sees on arriving. */}
+        <div style={{ flex:1, minWidth:200, display:"flex", justifyContent:"center", padding:"0 10px" }}>
+          {shownReview && <div key={shownReview.id} className="review-fade"
+            style={{ textAlign:"center", maxWidth:560 }}>
+            <div style={{ fontSize:12.5, lineHeight:1.55, color:T.text2, fontStyle:"italic" }}>
+              “{shownReview.text.length > 190
+                  ? shownReview.text.slice(0, 190).trim() + "…"
+                  : shownReview.text}”
+            </div>
+            {/* Stars under the words, because the words are the point. */}
+            <div style={{ marginTop:5, fontSize:12, color:AMBER, letterSpacing:1.5 }}>
+              {"★".repeat(shownReview.stars)}<span style={{ color:T.line }}>{"★".repeat(5 - shownReview.stars)}</span>
+            </div>
+            <div style={{ marginTop:2, fontSize:10.5, color:T.muted }}>
+              {shownReview.client}{shownReview.producer ? " · " + firstName(shownReview.producer) : ""}
+            </div>
+          </div>}
         </div>
         <div style={{ display:"flex", gap:6, flexWrap:"wrap", justifyContent:"flex-end" }}>
           <button onClick={() => persist.dark(!dark)} title="Toggle theme" style={{ ...btn(T), padding:"9px 12px" }}>{dark ? "☀️" : "🌙"}</button>
@@ -2645,6 +2704,49 @@ function App() {
           </button>
         </Card>}
 
+        {admin && rvEdit && <Card T={T} style={{ marginBottom:16, border:`1px solid ${INDIGO}66` }}>
+          <SectionTitle T={T}>Correcting the review from {rvEdit.client}</SectionTitle>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(185px,1fr))",
+            gap:9, marginBottom:9 }}>
+            <input value={rvEdit.client} onChange={e => setRvEdit({ ...rvEdit, client:e.target.value })}
+              placeholder="Client name" style={{ ...input(T), background:T.card, fontSize:12.5 }}/>
+            <select value={rvEdit.producer} onChange={e => setRvEdit({ ...rvEdit, producer:e.target.value })}
+              style={{ ...input(T), background:T.card, fontSize:12.5 }}>
+              <option value="">Nobody in particular</option>
+              {producers.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
+            </select>
+            <select value={rvEdit.stars} onChange={e => setRvEdit({ ...rvEdit, stars:Number(e.target.value) })}
+              style={{ ...input(T), background:T.card, fontSize:12.5 }}>
+              {[5,4,3,2,1].map(n => <option key={n} value={n}>{"\u2605".repeat(n)}</option>)}
+            </select>
+            <input type="date" value={rvEdit.date}
+              onChange={e => setRvEdit({ ...rvEdit, date:e.target.value })}
+              title="When the review was left — this is what decides which folio it counts in"
+              style={{ ...input(T), background:T.card, fontSize:12.5 }}/>
+          </div>
+
+          <textarea value={rvEdit.text} onChange={e => setRvEdit({ ...rvEdit, text:e.target.value })}
+            rows={3} placeholder="What they said"
+            style={{ ...input(T), background:T.card, width:"100%", fontSize:12.5,
+              resize:"vertical", fontFamily:"inherit", marginBottom:10 }}/>
+
+          <div style={{ display:"flex", gap:8 }}>
+            <button onClick={() => setRvEdit(null)}
+              style={{ ...btn(T), padding:"10px 18px", fontSize:13 }}>Cancel</button>
+            <button disabled={busy} onClick={async () => {
+              setBusy(true);
+              const res = await api("updateReview", rvEdit);
+              setBusy(false);
+              if (!res.ok) return addLog(res.error || "Could not save that correction.", "err");
+              setGoogleReviews(res.reviews || []);
+              setRvEdit(null);
+              addLog("Review from " + rvEdit.client + " corrected.", "ok");
+            }} style={{ ...btn(T,"go"), padding:"10px 20px", fontSize:13 }}>
+              {busy ? "Saving\u2026" : "Save correction"}
+            </button>
+          </div>
+        </Card>}
+
         {admin && googleReviews.length > 0 && <Card T={T} style={{ marginBottom:16 }}>
           <SectionTitle T={T}>Google reviews on file · {googleReviews.length}</SectionTitle>
           <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
@@ -2658,6 +2760,13 @@ function App() {
                 </div>
                 <div style={{ fontSize:11.5, color:T.text2, lineHeight:1.6 }}>{r.text}</div>
               </div>
+              <button title="Correct this review — the producer, the stars, a typo"
+                onClick={() => setRvEdit({
+                  id: r.id, client: r.client, stars: r.stars, text: r.text,
+                  link: r.link || "", producer: r.producer || "",
+                  date: (r.date || "").slice(0, 10)
+                })}
+                style={{ ...btn(T), padding:"3px 9px", fontSize:11, color:INDIGO }}>✏️</button>
               <button onClick={async () => {
                 if (!confirm(`Remove the review from ${r.client}?`)) return;
                 const res = await api("removeReview", { id:r.id });
@@ -2674,8 +2783,15 @@ function App() {
             /* Counted from the reviews actually recorded, so the number means
                something rather than depending on a spreadsheet cell somebody may
                or may not have filled in. */
-            const n = googleReviews.filter(r =>
-              r.producerId === p.id || firstName(r.producer || "") === firstName(p.name)).length;
+            /* Only reviews left during this folio.
+               A review from March is still theirs and still on file, but adding
+               it today should not lift this folio's number — the figures on this
+               page are about the period, and a count that moves when somebody
+               enters back-history is not measuring anything. */
+            const mine = googleReviews.filter(r =>
+              r.producerId === p.id || firstName(r.producer || "") === firstName(p.name));
+            const n = mine.filter(r => inFolio(r.date)).length;
+            const all = mine.length;
             const l = splitLines(p.sales);
             return <Card key={p.id} T={T} style={{ textAlign:"center" }}>
               <div style={{ fontSize:29, marginBottom:5 }}>{p.avatar}</div>
@@ -2686,6 +2802,9 @@ function App() {
                 <span>🏠{l.personal.count}</span><span>❤️{l.life.count}</span><span>🏢{l.commercial.count}</span>
               </div>
               <div className="display" style={{ fontSize:24 }}>⭐ {n}</div>
+              {all > n && <div style={{ fontSize:10, color:T.muted, marginTop:2 }}>
+                {all} all time
+              </div>}
             </Card>;
           })}
         </div>
