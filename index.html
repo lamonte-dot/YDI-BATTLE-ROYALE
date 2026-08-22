@@ -403,7 +403,7 @@ const hasBackend = () => /^https:\/\//.test(CONFIG.backendUrl || "");
 
 /* Must match BACKEND_BUILD in ydi-backend.gs. A mismatch means the deployment
    is serving an older version of the script than this page expects. */
-const EXPECTED_BUILD = "16.4";
+const EXPECTED_BUILD = "16.5";
 
 async function api(action, payload = {}) {
   if (!hasBackend()) return { ok:false, error:"No backend URL is set in CONFIG yet." };
@@ -2952,7 +2952,7 @@ function App() {
                 "Open leads sitting in a past folio move to this one, as though assigned " +
                 "today. Bound and closed business stays where it happened.\n\n" +
                 "Type their name:");
-              if (!who || !who.trim()) return;
+              if (!who || !who.trim()) return addLog("Cancelled — nothing was changed.", "warn");
 
               setBusy(true);
               const pre = await api("bringForward", { who: who.trim(), dryRun: "true" });
@@ -3015,20 +3015,42 @@ function App() {
                 "Leave blank for every producer, or type one name to do just theirs.\n\n" +
                 "Bound policies on folio tabs are not touched, and the lead sheet keeps " +
                 "every lead. Only the agent-facing lists are emptied.");
-              if (who === null) return;
+              if (who === null) return addLog("Cancelled — nothing was changed.", "warn");
 
+              addLog("Checking what would be cleared…", "ok");
               setBusy(true);
               const pre = await api("clearLists", { who: who.trim(), dryRun: "true" });
               setBusy(false);
-              if (!pre.ok && pre.error) return addLog(pre.error, "err");
+
+              /* Every path says something. A button that can finish in silence
+                 leaves you unable to tell "it worked" from "it never ran", and
+                 the commonest cause of the latter — saving the script without
+                 deploying a new version — looks exactly like nothing happening. */
+              if (!pre || typeof pre !== "object") {
+                return addLog("No reply from the backend. Check it is deployed.", "err");
+              }
+              if (pre.error) {
+                addLog(pre.error, "err");
+                if (/unknown action/i.test(pre.error)) {
+                  addLog("That action does not exist in the deployed script yet. In the Battle " +
+                         "Royale Apps Script: Deploy → Manage deployments → ✏️ → New version → Deploy.", "err");
+                }
+                return;
+              }
+              if (pre.rows === undefined) {
+                return addLog("The backend replied but sent no counts. It is probably running an " +
+                              "older version — deploy a new one.", "err");
+              }
 
               (pre.report || []).forEach(line => addLog("    " + line, "warn"));
-              if (!pre.rows) return addLog("The working lists are already empty.", "ok");
+              if (!pre.rows) return addLog("The working lists are already empty — nothing to clear.", "ok");
 
               if (!confirm(`Remove ${pre.rows} row(s) from the working lists?\n\n` +
                   "Every assignment is also marked as settled, so nothing comes back on " +
                   "its own — the lists fill again only with what you assign from here.\n\n" +
-                  "Bound policies stay. The lead sheet keeps everything.")) return;
+                  "Bound policies stay. The lead sheet keeps everything.")) {
+                return addLog("Cancelled — nothing was changed.", "warn");
+              }
 
               setBusy(true);
               const r = await api("clearLists", { who: who.trim() });
