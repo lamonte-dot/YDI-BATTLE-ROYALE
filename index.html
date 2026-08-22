@@ -3004,6 +3004,18 @@ function App() {
               fontSize:13, fontWeight:700, border:`1px solid ${AMBER}55`, background:AMBER + "0d", color:"#92400e" }}>
               🩺 {busy ? "Checking…" : "Why aren't leads arriving?"}
             </button>
+            <button onClick={async () => {
+              setBusy(true);
+              const r = await api("fixDropdowns");
+              setBusy(false);
+              addLog(r.ok
+                ? "Lead sheet dropdowns rewritten. Every value already in use was kept, and " +
+                  "anything outside the list now warns instead of refusing."
+                : (r.error || "Could not rewrite the dropdowns."), r.ok ? "ok" : "err");
+            }} disabled={busy} style={{ padding:"11px 18px", borderRadius:11, cursor:"pointer",
+              fontSize:13, fontWeight:700, border:`1px solid ${INDIGO}55`, background:INDIGO + "0d", color:INDIGO }}>
+              📋 {busy ? "Working…" : "Fix lead sheet dropdowns"}
+            </button>
             <button title={"Builds any missing tab, brings layouts up to date, corrects total rows, " +
               "stamps policy ids, and clears strike-through that no longer applies. " +
               "Nothing is deleted."}
