@@ -1685,13 +1685,6 @@ function App() {
   }, [period]);
   const locked = !admin && !!meId;
 
-  /* Five stars only. A three-star review is worth reading in the admin list and
-     worth acting on, but it is not what the team wants greeting them. */
-  const shownReview = useMemo(() => {
-    const good = (googleReviews || []).filter(r => r && r.text && (r.stars || 5) >= 4);
-    if (!good.length) return null;
-    return good[reviewTick % good.length];
-  }, [googleReviews, reviewTick]);
 
   const prevTotals = useRef({});
   const celebrated = useRef(new Set(load("celebrated", [])));
@@ -1725,6 +1718,22 @@ function App() {
      derived below, which is whatever agents typed into the Reviews column of a
      folio row — a different thing, and both are worth keeping. */
   const [googleReviews, setGoogleReviews] = useState([]);
+
+  /* Which review greets everyone, chosen after the reviews exist.
+   *
+   * This sat above the line that declares googleReviews, which in a `const`
+   * world is not a value that is merely empty — reading it throws, and the whole
+   * dashboard stops rendering before it draws anything. It showed up as "the
+   * reviews are not appearing" rather than as an error, because the page never
+   * got far enough to show one.
+   *
+   * Four stars and up. A three-star review is worth reading in the admin list
+   * and worth acting on, but it is not what the team wants on arriving. */
+  const shownReview = useMemo(() => {
+    const good = (googleReviews || []).filter(r => r && r.text && (r.stars || 5) >= 4);
+    if (!good.length) return null;
+    return good[reviewTick % good.length];
+  }, [googleReviews, reviewTick]);
   const [rvEdit, setRvEdit] = useState(null);
 
   /* Which review to show up top.
