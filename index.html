@@ -2929,16 +2929,18 @@ function App() {
               <button key={key} onClick={() => setModal(key)} style={{ padding:"11px 18px", borderRadius:11, cursor:"pointer",
                 fontSize:13, fontWeight:700, border:`1px solid ${c}44`, background:c + "0d", color:c }}>{label}</button>)}
             <button onClick={async () => {
-              if (!confirm("Put every assignment back where the lead's own dates say?\n\n" +
-                  "Use this if a producer's whole back catalogue has landed on their " +
-                  "Current Leads. Leads worked in this folio stay; the rest file to " +
-                  "Aged Leads, which is where they belong.\n\n" +
-                  "No spreadsheet is changed.")) return;
+              if (!confirm("Clear every working list back to empty?\n\n" +
+                  "Use this when leads have appeared on a producer's sheet that nobody " +
+                  "assigned. Every existing assignment is marked as settled, so the " +
+                  "lists empty on the next sync and fill again only with what you " +
+                  "assign from here.\n\n" +
+                  "No lead is deleted and no spreadsheet is changed — the lead sheet " +
+                  "keeps everything.")) return;
               setBusy(true);
               const r = await api("reseedAssign");
               setBusy(false);
               addLog(r.ok
-                ? `${r.reseeded} assignment(s) put back. The sheets re-file on the next sync.`
+                ? `${r.reseeded} assignment(s) settled. The working lists clear on the next sync.`
                 : (r.error || "Could not do that."), r.ok ? "ok" : "err");
             }} disabled={busy} style={{ padding:"11px 18px", borderRadius:11, cursor:"pointer",
               fontSize:13, fontWeight:700, border:`1px solid ${T.border}`, background:T.card, color:T.text2 }}>
@@ -3006,6 +3008,28 @@ function App() {
             }} disabled={busy} style={{ padding:"11px 18px", borderRadius:11, cursor:"pointer",
               fontSize:13, fontWeight:700, border:`1px solid ${AMBER}55`, background:AMBER + "0d", color:"#92400e" }}>
               🩺 {busy ? "Checking…" : "Why aren't leads arriving?"}
+            </button>
+            <button onClick={async () => {
+              setBusy(true);
+              const r = await api("preflight");
+              setBusy(false);
+              if (!r.checks) return addLog(r.error || "Could not run the check.", "err");
+
+              addLog("── Pre-flight ──", "ok");
+              r.checks.forEach(c => addLog(
+                (c.state === "pass" ? "✅ " : c.state === "warn" ? "⚠ " : "✗ ") + c.title +
+                (c.detail ? " — " + c.detail : ""),
+                c.state === "pass" ? "ok" : c.state === "warn" ? "warn" : "err"));
+
+              addLog(r.failed
+                ? `${r.failed} thing(s) must be fixed first. Clearing a sheet now would not help — the same fault would come back.`
+                : r.warned
+                  ? `Nothing is broken. ${r.warned} thing(s) worth knowing, above. Safe to assign leads.`
+                  : "Everything checks out. Safe to assign leads.",
+                r.failed ? "err" : "ok");
+            }} disabled={busy} style={{ padding:"11px 18px", borderRadius:11, cursor:"pointer",
+              fontSize:13, fontWeight:800, border:`2px solid ${GREEN}`, background:GREEN + "12", color:GREEN }}>
+              🚦 {busy ? "Checking…" : "Pre-flight check"}
             </button>
             <button onClick={async () => {
               setBusy(true);
