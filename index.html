@@ -2002,6 +2002,21 @@ function App() {
 
     <div style={{ maxWidth:1240, margin:"0 auto" }}>
 
+      {/* The deployed script is older than this page.
+          This was only shown inside the Admin tab, under a heading somebody had
+          to already suspect was relevant — so the one condition that makes every
+          other fix inert was the hardest thing on the page to find. It belongs
+          at the top, where a stale deployment is the first thing you see. */}
+      {cloud.state === "ok" && cloud.build && cloud.build !== EXPECTED_BUILD &&
+        <div style={{ marginBottom:12, padding:"11px 14px", borderRadius:10,
+          border:`1px solid ${AMBER}66`, background:AMBER + "14",
+          fontSize:12.5, color: dark ? "#fcd34d" : "#92400e", lineHeight:1.65 }}>
+          <b>The deployed script is build {cloud.build}; this page expects {EXPECTED_BUILD}.</b>
+          {" "}Anything added since build {cloud.build} will not work — buttons may do nothing
+          at all. Saving the script is not enough: in the Battle Royale Apps Script go to
+          <b> Deploy → Manage deployments → ✏️ → Version: New version → Deploy</b>.
+        </div>}
+
       {/* A backend that cannot be reached, said plainly.
           It was reported into the admin log, which nobody but an admin ever
           sees — so for everyone else the page simply had no reviews, no
@@ -3186,6 +3201,53 @@ function App() {
             }} disabled={busy} style={{ padding:"11px 18px", borderRadius:11, cursor:"pointer",
               fontSize:13, fontWeight:700, border:`1px solid ${AMBER}55`, background:AMBER + "0d", color:"#92400e" }}>
               ↩️ {busy ? "Checking…" : "Unmark leads bound in error"}
+            </button>
+            <button onClick={async () => {
+              setBusy(true);
+              const have = await api("listExcluded");
+              setBusy(false);
+              if (have.count) {
+                addLog(`${have.count} lead(s) are currently set aside:`, "warn");
+                (have.rows || []).slice(0, 20).forEach(x => addLog("    " + x, "warn"));
+              }
+
+              const input = prompt(
+                "Which leads should stop counting toward the folio?\n\n" +
+                "Paste lead IDs or client names, separated by commas or new lines.\n\n" +
+                "Their details stay on the lead sheet — every column, untouched. They " +
+                "just stop being counted as this period's work, and come off the working " +
+                "lists they should not have reached.\n\n" +
+                "To count one again, tick the box on the next prompt.");
+              if (input === null || !input.trim()) {
+                return addLog("Cancelled — nothing was changed.", "warn");
+              }
+              const undo = confirm("OK = count these again.\nCancel = set them aside.")
+                ? "true" : "false";
+
+              setBusy(true);
+              const pre = await api("excludeFolio", { leads:input, undo, dryRun:"true" });
+              setBusy(false);
+              if (!pre.ok) return addLog(pre.error || "Could not read that.", "err");
+
+              (pre.rows || []).forEach(x => addLog("    " + x, "ok"));
+              (pre.ambiguous || []).forEach(x => addLog("    ⚠ " + x, "warn"));
+              (pre.missed || []).forEach(x => addLog("    ✗ not found: " + x, "err"));
+              if (!pre.count) return addLog("None of those matched a lead.", "err");
+
+              if (!confirm(`${undo === "true" ? "Count" : "Set aside"} ${pre.count} lead(s)?\n\n` +
+                  "Nothing is removed from the lead sheet.")) {
+                return addLog("Cancelled — nothing was changed.", "warn");
+              }
+              setBusy(true);
+              const r = await api("excludeFolio", { leads:input, undo });
+              setBusy(false);
+              addLog(r.ok
+                ? `${r.count} lead(s) ${undo === "true" ? "counted again" : "set aside"}. ` +
+                  "The figures settle on the next sync."
+                : (r.error || "Could not do that."), r.ok ? "ok" : "err");
+            }} disabled={busy} style={{ padding:"11px 18px", borderRadius:11, cursor:"pointer",
+              fontSize:13, fontWeight:700, border:`1px solid ${AMBER}55`, background:AMBER + "0d", color:"#92400e" }}>
+              🚫 {busy ? "Working…" : "Set leads aside from this folio"}
             </button>
             <button onClick={async () => {
               setBusy(true);
